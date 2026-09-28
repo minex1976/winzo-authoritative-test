@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Winzo Admin</title>
+<style>
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#120b20;color:#f5efff;padding:20px}h1{margin-top:0}button,input{font:inherit}input{padding:10px;border-radius:10px;border:1px solid #5e4878;background:#211432;color:#fff;width:100%;box-sizing:border-box}button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:700}.primary{background:#ffd15c}.danger{background:#ff7777}.muted{color:#bbaecc}.bar{display:grid;grid-template-columns:1fr auto;gap:10px;max-width:700px}.card{background:#211432;border:1px solid #49325f;border-radius:16px;padding:16px;margin:14px 0;max-width:700px}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.status{margin:12px 0}.thumb{max-width:220px;max-height:220px;border-radius:10px;margin-top:10px;display:block}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#3a2850;margin-right:6px}.hidden{display:none}.error{color:#ff9696}
+</style>
+</head>
+<body>
+<h1>Winzo Admin</h1>
+<p class="muted">Deposit and withdrawal approval panel. Keep the admin key private.</p>
+<div id="login">
+  <div class="bar"><input id="server" placeholder="WebSocket server, e.g. wss://..."><input id="key" type="password" placeholder="Admin key"></div>
+  <div class="row"><button class="primary" id="connect">Connect</button></div>
+</div>
+<div id="app" class="hidden">
+  <div class="status" id="status">Connected.</div>
+  <button class="primary" id="refresh">Refresh pending requests</button>
+  <div id="list"></div>
+</div>
+<script>
+const params=new URLSearchParams(location.search);
+const serverInput=document.getElementById('server');
+const keyInput=document.getElementById('key');
+const login=document.getElementById('login');
+const app=document.getElementById('app');
+const status=document.getElementById('status');
+const list=document.getElementById('list');
+const connectBtn=document.getElementById('connect');
+const refreshBtn=document.getElementById('refresh');
+const defaultServer=params.get('server')||'wss://<your-codespace-name>-8080.app.github.dev';
+serverInput.value=defaultServer;
+let ws=null,adminKey='';
+function send(m){if(ws&&ws.readyState===1){ws.send(JSON.stringify(m));return true}return false}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function money(v){return Number(v||0).toLocaleString()+' Birr'}
+function render(data){const txs=Object.values(data||{});if(!txs.length){list.innerHTML='<p class="muted">No pending requests.</p>';return}list.innerHTML=txs.sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(t=>`<div class="card"><div><span class="pill">${esc(t.type)}</span><span class="pill">${money(t.amount)}</span></div><p><b>User:</b> ${esc(t.username)}</p>${t.reference?`<p><b>Reference:</b> ${esc(t.reference)}</p>`:''}${t.fullName?`<p><b>Name:</b> ${esc(t.fullName)}</p>`:''}${t.phoneNumber?`<p><b>Phone:</b> ${esc(t.phoneNumber)}</p>`:''}${t.imageUrl?`<a href="${esc(t.imageUrl)}" target="_blank" rel="noopener"><img class="thumb" src="${esc(t.imageUrl)}" alt="Deposit screenshot"></a>`:''}<div class="row"><button class="primary" onclick="decide('${esc(t.id)}','approved')">Approve</button><button class="danger" onclick="decide('${esc(t.id)}','rejected')">Reject</button></div></div>`).join('')}
+function decide(id,decision){if(confirm(decision==='approved'?'Approve this request?':'Reject this request?'))send({type:'admin-decision',id,decision})}
+connectBtn.onclick=()=>{adminKey=keyInput.value.trim();const url=serverInput.value.trim();if(!adminKey||!url)return; if(ws)try{ws.close()}catch{};ws=new WebSocket(url);status.textContent='Connecting…';ws.onopen=()=>send({type:'admin-auth',key:adminKey});ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch{return}if(m.type==='admin-authed'){login.classList.add('hidden');app.classList.remove('hidden');status.textContent='Connected as admin.';send({type:'admin-list-transactions'})}else if(m.type==='admin-auth-fail'){status.innerHTML='<span class="error">Admin authentication failed.</span>'}else if(m.type==='admin-transactions'){render(m.transactions)}else if(m.type==='admin-decision-ok'){send({type:'admin-list-transactions'})}else if(m.type==='admin-error'){status.innerHTML='<span class="error">'+esc(m.message)+'</span>'}};ws.onclose=()=>{status.textContent='Disconnected.'}}
+refreshBtn.onclick=()=>send({type:'admin-list-transactions'});
+</script>
+</body>
+</html>

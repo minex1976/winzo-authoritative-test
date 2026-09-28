@@ -1,0 +1,2685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Winzo Games Room</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: radial-gradient(ellipse at center, #1a0a2e 0%, #0d1b2a 100%); min-height: 100vh; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; padding: 8px; margin: 0; overflow: hidden; }
+        .game-wrapper { max-width: 480px; width: 100%; height: 100vh; max-height: 850px; background: linear-gradient(160deg, #2a1a4a, #1a2a4a); border-radius: 40px; padding: 12px 14px 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8); border: 1px solid rgba(180, 120, 255, 0.2); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .hidden { display: none !important; }
+        .auth-screen { display: flex; flex-direction: column; gap: 12px; padding: 30px 12px; flex: 1; justify-content: center; }
+        .auth-screen .logo { text-align: center; margin-bottom: 4px; }
+        .auth-screen .logo h2 { color: #f0e6ff; font-size: 2.2rem; font-weight: 900; letter-spacing: 4px; text-shadow: 0 0 20px rgba(180, 120, 255, 0.4), 0 2px 0 #6a4a9a; }
+        .auth-screen .logo span { color: #ffcc44; }
+        .auth-screen .subtitle { color: #b8a0d0; text-align: center; font-size: 0.8rem; letter-spacing: 1px; }
+        .auth-screen .telegram-info { color: #8affb0; text-align: center; font-size: 0.8rem; background: rgba(80, 255, 160, 0.08); padding: 8px; border-radius: 30px; border: 1px solid rgba(80, 255, 160, 0.15); }
+        .auth-screen .telegram-info.detected { border-color: rgba(80, 255, 160, 0.3); color: #8affb0; }
+        .auth-screen .telegram-info.not-detected { border-color: rgba(255, 200, 80, 0.2); color: #ffd866; }
+        .auth-screen input { background: rgba(20, 10, 40, 0.8); border: 2px solid rgba(120, 80, 200, 0.3); border-radius: 30px; padding: 12px 18px; color: #f0e6ff; font-size: 1rem; outline: none; transition: all 0.3s; width: 100%; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4); }
+        .auth-screen input:focus { border-color: #ffcc44; box-shadow: 0 0 0 4px rgba(255, 204, 68, 0.15); }
+        .auth-screen input::placeholder { color: #7a6a9a; }
+        .auth-screen input:read-only { color: #8affb0; cursor: not-allowed; opacity: 0.8; }
+        .auth-btn { background: linear-gradient(135deg, #ffcc44, #f5a623); border: none; border-radius: 30px; padding: 12px 18px; font-weight: 700; font-size: 1rem; color: #1a0a2e; cursor: pointer; box-shadow: 0 4px 0 #b87a15; transition: all 0.08s linear; width: 100%; letter-spacing: 0.5px; }
+        .auth-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b87a15; }
+        .auth-btn-secondary { background: rgba(120, 80, 200, 0.2); color: #d4c0f0; box-shadow: 0 4px 0 rgba(120, 80, 200, 0.3); border: 1px solid rgba(120, 80, 200, 0.2); }
+        .auth-error { color: #ff6b6b; text-align: center; font-size: 0.8rem; min-height: 1.3rem; font-weight: 500; }
+        .connection-status { text-align: center; font-size: 0.7rem; padding: 3px 8px; border-radius: 30px; display: inline-block; margin: 0 auto; }
+        .connection-status.online { background: rgba(80, 255, 160, 0.12); color: #8affb0; border: 1px solid rgba(80, 255, 160, 0.2); }
+        .connection-status.offline { background: rgba(255, 80, 80, 0.1); color: #ff8a8a; border: 1px solid rgba(255, 80, 80, 0.15); }
+        .welcome-screen { display: none; flex-direction: column; gap: 20px; padding: 30px 16px; flex: 1; justify-content: center; align-items: center; }
+        .welcome-screen .logo { text-align: center; }
+        .welcome-screen .logo h2 { color: #f0e6ff; font-size: 2.4rem; font-weight: 900; letter-spacing: 4px; text-shadow: 0 0 30px rgba(180, 120, 255, 0.3), 0 2px 0 #6a4a9a; }
+        .welcome-screen .logo span { color: #ffcc44; }
+        .welcome-screen .bet-options { display: flex; gap: 20px; margin-top: 10px; width: 100%; max-width: 300px; }
+        .welcome-screen .bet-options button { flex: 1; padding: 20px; border-radius: 30px; border: 3px solid rgba(180, 120, 255, 0.2); background: rgba(40, 20, 80, 0.6); color: #f0e6ff; font-size: 1.8rem; font-weight: 800; cursor: pointer; text-align: center; animation: floatBet 3s ease-in-out infinite; }
+        .welcome-screen .bet-options button:nth-child(2) { animation-delay: 0.5s; }
+        @keyframes floatBet { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .welcome-screen .bet-options button:hover { background: rgba(80, 40, 160, 0.8); border-color: #ffcc44; }
+        .welcome-screen .bet-options button .label { font-size: 0.7rem; font-weight: 600; color: #b8a0d0; display: block; margin-top: 4px; }
+        .welcome-screen .wallet-info { color: #b8a0d0; font-size: 0.75rem; text-align: center; }
+        .welcome-screen .wallet-info .amount { color: #ffcc44; font-weight: 700; }
+        .welcome-screen .logout-btn { background: rgba(120, 80, 200, 0.15); border: 1px solid rgba(120, 80, 200, 0.2); border-radius: 30px; padding: 8px 20px; color: #b8a0d0; font-size: 0.75rem; cursor: pointer; }
+        .wallet-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; background: rgba(20, 10, 40, 0.7); border-radius: 30px; padding: 4px 10px; border: 1px solid rgba(180, 120, 255, 0.15); flex-shrink: 0; margin-bottom: 4px; justify-content: space-between; position: relative; z-index: 50; }
+        .wallet-left { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; flex: 1; min-width: 0; }
+        .wallet-item { color: #b8a0d0; font-size: 0.6rem; font-weight: 600; display: flex; align-items: center; gap: 2px; background: rgba(0, 0, 0, 0.3); padding: 2px 8px; border-radius: 30px; border: 1px solid rgba(120, 80, 200, 0.1); white-space: nowrap; }
+        .wallet-item .amount { color: #ffcc44; font-weight: 800; font-size: 0.75rem; }
+        .wallet-item .label { color: #7a6a9a; }
+        .wallet-item .username { color: #f0e6ff; font-weight: 700; max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
+        #refWallet { color: #8affb0 !important; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.online { background: #4caf84; box-shadow: 0 0 12px rgba(76, 175, 132, 0.4); }
+        .status-dot.offline { background: #e87070; }
+        .more-btn { background: rgba(120, 80, 200, 0.15); border: 1px solid rgba(120, 80, 200, 0.15); border-radius: 50%; width: 26px; height: 26px; color: #d4c0f0; font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; }
+        .more-wrapper { position: relative; flex-shrink: 0; z-index: 100; }
+        .more-dropdown { display: none; position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: rgba(20, 10, 40, 0.95); border: 1px solid rgba(180, 120, 255, 0.15); border-radius: 18px; padding: 6px; flex-direction: column; gap: 3px; }
+        .more-dropdown.open { display: flex; }
+        .dropdown-item { background: transparent; border: none; border-radius: 10px; padding: 6px 12px; font-weight: 600; font-size: 0.75rem; color: #d4c0f0; cursor: pointer; text-align: left; width: 100%; display: flex; align-items: center; gap: 10px; }
+        .dropdown-item .icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+        .dropdown-item.deposit { color: #8affb0; }
+        .dropdown-item.withdraw { color: #ffd866; }
+        .dropdown-item.transfer { color: #74b9ff; }
+        .dropdown-item.reconnect { color: #ffcc44; }
+        .dropdown-item.logout { color: #ff8a8a; }
+        #gameScreen { display: none; flex-direction: column; height: 100%; min-height: 0; flex: 1 1 auto; overflow: hidden; }
+        .title { text-align: center; font-weight: 800; font-size: 1.1rem; letter-spacing: 3px; color: #f0e6ff; line-height: 1.2; flex-shrink: 0; margin-bottom: 2px; }
+        .title small { font-size: 0.45rem; letter-spacing: 2px; opacity: 0.6; display: block; font-weight: 400; color: #b8a0d0; }
+        .bet-switcher { display: flex; justify-content: center; align-items: center; gap: 8px; background: rgba(20, 10, 40, 0.5); border-radius: 30px; padding: 3px 12px; margin: 2px 0 3px; border: 1px solid rgba(120, 80, 200, 0.1); flex-shrink: 0; }
+        .switch-room-btn { background: linear-gradient(135deg, #ffdf6b, #f5b52e 52%, #d98a16) !important; border: 2px solid #ffcc44 !important; border-radius: 20px !important; padding: 3px 18px !important; color: #2a1600 !important; font-size: 0.75rem !important; font-weight: 800 !important; cursor: pointer; }
+        .game-info-bar { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; background: rgba(20, 10, 40, 0.5); border-radius: 30px; padding: 4px 12px; margin: 2px 0 3px; border: 1px solid rgba(120, 80, 200, 0.1); flex-shrink: 0; min-height: 2rem; }
+        .game-info-bar .info-item { display: flex; align-items: center; gap: 4px; color: #b8a0d0; font-size: 0.7rem; font-weight: 600; }
+        .game-info-bar .info-item .value { color: #f0e6ff; font-weight: 800; font-size: 0.85rem; }
+        .game-info-bar .info-item .value.timer { color: #ffcc44; font-size: 1rem; }
+        .game-info-bar .info-item .value.players { color: #8affb0; }
+        .game-info-bar .info-item .value.bet-total { color: #74ffb9; font-size: 0.95rem; }
+        .pick-status { background: rgba(20, 10, 40, 0.5); border-radius: 20px; padding: 4px 12px; margin: 2px 0 3px; text-align: center; font-weight: 600; font-size: 0.7rem; color: #b8a0d0; border: 1px solid rgba(120, 80, 200, 0.1); min-height: 1.8rem; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
+        .pick-status .highlight { color: #ffcc44; font-weight: 800; }
+        .status-area { background: rgba(20, 10, 40, 0.6); border-radius: 30px; padding: 4px 10px; margin: 2px 0 3px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #b8a0d0; border: 1px solid rgba(120, 80, 200, 0.1); min-height: 1.8rem; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; flex-shrink: 0; }
+        .status-area .highlight { color: #ffcc44; font-weight: 800; }
+        .win-badge { background: linear-gradient(135deg, #f5c542, #e8a020); color: #1a0a2e; padding: 2px 14px; border-radius: 40px; font-weight: 800; animation: pulse 1s infinite alternate; font-size: 0.7rem; }
+        @keyframes pulse { 0% { opacity: 0.8; transform: scale(0.97); } 100% { opacity: 1; transform: scale(1.04); } }
+        .profile-area { background: rgba(20, 10, 40, 0.5); border-radius: 16px; padding: 4px 6px; border: 1px solid rgba(120, 80, 200, 0.1); flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 220px; }
+        .profile-row { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; flex-shrink: 0; margin-bottom: 2px; }
+        .profile-label { color: #b8a0d0; font-weight: 600; font-size: 0.6rem; min-width: 24px; }
+        .num-picker-wrapper { flex: 1 1 auto; display: block; overflow-y: auto; overflow-x: hidden; padding: 1px 0; min-height: 0; -webkit-overflow-scrolling: touch; }
+        .num-picker { display: grid; width: 100%; min-height: max-content; grid-template-columns: repeat(8, 1fr); gap: 3px; padding: 3px; }
+        .num-btn { background: #6a3a9a; border: 2px solid rgba(240, 230, 255, 0.3); border-radius: 6px; padding: 0; font-weight: 800; font-size: 0.9rem; color: #f0e6ff; cursor: pointer; text-align: center; aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; user-select: none; }
+        .num-btn.selected { background: linear-gradient(135deg, #f5c542, #e8a020) !important; color: #1a0a2e !important; border-color: #ffcc44 !important; transform: scale(1.06) !important; }
+        .num-btn.taken { background: red; color: yellow; cursor: not-allowed; }
+        .num-btn:disabled { opacity: 100; pointer-events: none; cursor: not-allowed; }
+        .num-btn.loading { background: #3a2a4a; color: #5a4a6a; animation: shimmer 1.2s ease-in-out infinite; }
+        @keyframes shimmer { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+        .footer { color: #7a6a9a; text-align: center; font-size: 0.4rem; margin-top: auto; border-top: 1px solid rgba(120, 80, 200, 0.08); padding-top: 2px; flex-shrink: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.55); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: linear-gradient(160deg, rgba(42, 26, 74, 0.9), rgba(26, 42, 74, 0.9)); border-radius: 28px; padding: 24px 20px 20px; max-width: 380px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid rgba(180, 120, 255, 0.2); }
+        .modal-content h2, .modal-content h3 { color: #f0e6ff; text-align: center; font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; border-bottom: 2px solid rgba(120, 80, 200, 0.15); padding-bottom: 8px; letter-spacing: 1px; }
+        .modal-content h3 { font-size: 1.1rem; }
+        .deposit-modal, .withdraw-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.35); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .deposit-modal.active, .withdraw-modal.active { display: flex; }
+        .modal-error { color: #ff6b6b; text-align: center; font-size: 0.75rem; min-height: 1.1rem; }
+        .balance-info { color: #b8a0d0; text-align: center; font-size: 0.8rem; margin-bottom: 10px; }
+        .balance-info .amount { color: #ffcc44; font-weight: 800; }
+        .modal-input { width: 100%; padding: 10px 16px; border-radius: 30px; border: 2px solid rgba(120, 80, 200, 0.25); background: rgba(0, 0, 0, 0.3); color: #f0e6ff; font-size: 0.95rem; margin-bottom: 8px; outline: none; }
+        .modal-input:focus { border-color: #ffcc44; }
+
+        .paste-box { background: rgba(80, 255, 160, 0.06); border: 1px solid rgba(80, 255, 160, 0.22); border-radius: 18px; padding: 10px; margin-bottom: 8px; }
+        .paste-label { color: #8affb0; font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 6px; line-height: 1.35; }
+        .paste-textarea { min-height: 78px; resize: vertical; font-size: 0.78rem; line-height: 1.35; font-family: inherit; background: rgba(0, 0, 0, 0.35); }
+        .paste-actions { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+        .paste-extract-btn { background: linear-gradient(135deg, #8affb0, #3fbf74); border: none; border-radius: 30px; padding: 8px 20px; color: #052e1a; font-size: 0.78rem; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #1f7a45; letter-spacing: 0.3px; }
+        .paste-extract-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #1f7a45; }
+        .paste-status { font-size: 0.7rem; color: #ffd866; font-weight: 600; flex: 1; min-width: 0; word-break: break-word; }
+        .paste-divider { text-align: center; color: #7a6a9a; font-size: 0.68rem; font-weight: 800; letter-spacing: 2px; margin: 8px 0 8px; position: relative; }
+        .paste-divider::before, .paste-divider::after { content: ""; position: absolute; top: 50%; width: 40%; height: 1px; background: linear-gradient(90deg, transparent, rgba(120, 80, 200, 0.35), transparent); }
+        .paste-divider::before { left: 0; }
+        .paste-divider::after  { right: 0; }
+
+        .modal-btns { display: flex; gap: 8px; }
+        .modal-btns button { flex: 1; padding: 10px; border-radius: 30px; border: none; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+        .modal-btns .confirm { background: linear-gradient(135deg, #ffcc44, #f5a623); color: #1a0a2e; }
+        .modal-btns .cancel { background: rgba(120, 80, 200, 0.15); color: #d4c0f0; }
+        .transaction-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.35); justify-content: center; align-items: center; z-index: 1001; padding: 20px; }
+        .transaction-modal.active { display: flex; }
+        .transaction-modal .status-text { color: #b8a0d0; text-align: center; font-size: 0.9rem; padding: 8px 0; }
+        .transaction-modal .status-text.pending { color: #ffd866; }
+        .transaction-modal .status-text.approved { color: #8affb0; }
+        .transaction-modal .status-text.rejected { color: #ff6b6b; }
+        .transaction-modal .close-btn { width: 100%; padding: 10px; border-radius: 30px; border: none; background: rgba(120, 80, 200, 0.15); color: #d4c0f0; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .waiting-modal { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 10, 40, 0.95); border: 1px solid rgba(255, 204, 68, 0.2); border-radius: 18px; padding: 16px 24px; max-width: 90%; z-index: 2000; text-align: center; }
+        .waiting-modal.active { display: block; }
+        .waiting-modal h3 { color: #f0e6ff; font-size: 1rem; margin-bottom: 2px; }
+        .waiting-modal p { color: #b8a0d0; font-size: 0.8rem; line-height: 1.4; margin-bottom: 6px; }
+        .waiting-modal .close-waiting { background: rgba(120, 80, 200, 0.15); border: none; color: #b8a0d0; padding: 4px 14px; border-radius: 30px; font-size: 0.7rem; cursor: pointer; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 10, 40, 0.95); border: 2px solid #ffcc44; border-radius: 18px; padding: 16px 24px; max-width: 90%; z-index: 3000; text-align: center; display: none; }
+        .toast.active { display: block; }
+        .toast .icon { font-size: 2rem; display: block; margin-bottom: 4px; }
+        .toast h3 { color: #f0e6ff; font-size: 1.1rem; margin-bottom: 2px; }
+        .toast p { color: #b8a0d0; font-size: 0.85rem; line-height: 1.4; }
+
+        .tx-result-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.78); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 5000; padding: 20px; }
+        .tx-result-modal.active { display: flex; }
+        .tx-result-modal .tx-result-card { background: linear-gradient(160deg, rgba(42, 26, 74, 0.98), rgba(26, 42, 74, 0.98)); border-radius: 28px; padding: 30px 24px 24px; max-width: 340px; width: 100%; text-align: center; border: 2px solid rgba(180, 120, 255, 0.28); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75); animation: txResultIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes txResultIn { 0% { transform: scale(0.7) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .tx-result-modal.approved .tx-result-card { border-color: rgba(80, 255, 160, 0.45); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(80, 255, 160, 0.28); }
+        .tx-result-modal.rejected .tx-result-card { border-color: rgba(255, 110, 110, 0.45); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(255, 110, 110, 0.28); }
+        .tx-result-icon { font-size: 3.4rem; line-height: 1; margin-bottom: 12px; }
+        .tx-result-title { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.5px; margin: 0 0 10px; color: #f0e6ff; }
+        .tx-result-modal.approved .tx-result-title { color: #8affb0; }
+        .tx-result-modal.rejected .tx-result-title { color: #ff8a8a; }
+        .tx-result-msg { color: #d4c0f0; font-size: 0.92rem; line-height: 1.5; margin: 0 0 20px; white-space: pre-wrap; word-break: break-word; }
+        .tx-result-ok { background: linear-gradient(135deg, #ffcc44, #f5a623); border: none; border-radius: 30px; padding: 11px 44px; font-weight: 800; font-size: 0.9rem; color: #1a0a2e; cursor: pointer; box-shadow: 0 4px 0 #b87a15; }
+        .tx-result-ok:active { transform: translateY(4px); box-shadow: 0 1px 0 #b87a15; }
+
+        .broadcast-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.78); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 5100; padding: 20px; }
+        .broadcast-modal.active { display: flex; }
+        .broadcast-modal .broadcast-card { background: linear-gradient(160deg, rgba(42, 26, 74, 0.98), rgba(26, 42, 74, 0.98)); border-radius: 28px; padding: 30px 24px 24px; max-width: 380px; width: 100%; text-align: center; border: 2px solid rgba(255, 204, 68, 0.35); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 45px rgba(255, 204, 68, 0.22); animation: txResultIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .broadcast-icon { font-size: 3rem; line-height: 1; margin-bottom: 10px; }
+        .broadcast-title { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px; margin: 0 0 10px; color: #ffd866; }
+        .broadcast-msg { color: #e8ddf8; font-size: 0.95rem; line-height: 1.55; margin: 0 0 20px; white-space: pre-wrap; word-break: break-word; }
+        .broadcast-ok { background: linear-gradient(135deg, #ffcc44, #f5a623); border: none; border-radius: 30px; padding: 11px 44px; font-weight: 800; font-size: 0.9rem; color: #1a0a2e; cursor: pointer; box-shadow: 0 4px 0 #b87a15; }
+        .broadcast-ok:active { transform: translateY(4px); box-shadow: 0 1px 0 #b87a15; }
+
+        .sticky-broadcast-overlay { display: none; position: fixed; inset: 0; background: rgba(2, 4, 12, 0.94); backdrop-filter: blur(6px); z-index: 9000; justify-content: center; align-items: center; padding: 20px; }
+        .sticky-broadcast-overlay.active { display: flex; }
+        .sticky-broadcast-card { max-width: 400px; width: 100%; padding: 32px 26px 26px; border-radius: 30px; background: radial-gradient(circle at 50% 0%, rgba(255, 120, 120, 0.18), transparent 60%), linear-gradient(160deg, #2a1640, #1a1030 55%, #221138); border: 2px solid rgba(255, 130, 130, 0.5); box-shadow: 0 0 0 1px rgba(255, 120, 120, 0.2), 0 0 60px rgba(255, 90, 90, 0.35), 0 25px 70px rgba(0, 0, 0, 0.75); text-align: center; animation: stickyIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes stickyIn { 0% { transform: scale(0.7) translateY(20px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .sticky-badge { display: inline-block; padding: 5px 16px; border-radius: 999px; background: rgba(255, 130, 130, 0.18); border: 1px solid rgba(255, 130, 130, 0.55); color: #ffb0b0; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 14px; }
+        .sticky-badge::before { content: "● "; color: #ff6b6b; animation: stickyBlink 1.2s ease-in-out infinite; }
+        @keyframes stickyBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+        .sticky-title { color: #f0e6ff; font-size: 1.3rem; font-weight: 900; letter-spacing: 0.5px; margin: 0 0 12px; }
+        .sticky-msg { color: #e8ddf8; font-size: 1rem; line-height: 1.6; margin: 0 0 18px; white-space: pre-wrap; word-break: break-word; }
+        .sticky-note { color: #9d8bb7; font-size: 0.72rem; letter-spacing: 0.6px; border-top: 1px solid rgba(180, 120, 255, 0.15); padding-top: 12px; }
+        .sticky-spinner { width: 34px; height: 34px; margin: 0 auto 12px; border: 3px solid rgba(255, 130, 130, 0.15); border-top: 3px solid #ff6b6b; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #fireworksCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3000; display: none; }
+        #fireworksCanvas.active { display: block; pointer-events: none; }
+        .ocr-progress-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.7); justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
+        .ocr-progress-modal.active { display: flex; }
+        .ocr-progress-modal .modal-content { max-width: 340px; text-align: center; padding: 30px 20px; }
+        .ocr-progress-modal .spinner { width: 60px; height: 60px; margin: 0 auto 16px; border: 4px solid rgba(255, 204, 68, 0.1); border-top: 4px solid #ffcc44; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .ocr-progress-modal .status-text { color: #f0e6ff; font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+        .ocr-progress-modal .sub-text { color: #b8a0d0; font-size: 0.8rem; }
+        .ocr-progress-modal .done-icon { font-size: 3rem; color: #8affb0; display: none; }
+        .ocr-progress-modal .done-icon.show { display: block; margin-bottom: 8px; }
+        .network-offline-overlay { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 5, 20, 0.85); z-index: 500; justify-content: center; align-items: center; border-radius: 40px; flex-direction: column; gap: 12px; padding: 20px; text-align: center; }
+        .network-offline-overlay.active { display: flex; }
+        .network-offline-overlay .icon { font-size: 3rem; }
+        .network-offline-overlay h3 { color: #f0e6ff; font-size: 1.2rem; font-weight: 700; }
+        .network-offline-overlay p { color: #b8a0d0; font-size: 0.85rem; max-width: 280px; }
+        .network-offline-overlay .retry-btn { background: linear-gradient(135deg, #ffcc44, #f5a623); border: none; border-radius: 30px; padding: 10px 32px; font-weight: 700; color: #1a0a2e; cursor: pointer; }
+        .referral-box { background: rgba(20, 10, 40, 0.5); border: 1px solid rgba(120, 80, 200, 0.15); border-radius: 18px; padding: 12px; margin-bottom: 10px; }
+        .referral-box .referral-stat { text-align: center; color: #b8a0d0; font-size: 0.75rem; margin-bottom: 10px; }
+        .referral-box .referral-stat strong { color: #ffcc44; font-size: 1.1rem; }
+        .referral-link { width: 100%; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(120, 80, 200, 0.2); background: rgba(0, 0, 0, 0.3); color: #8affb0; font-size: 0.7rem; outline: none; margin-bottom: 8px; }
+        .referral-actions { display: flex; gap: 8px; }
+        .referral-actions button { flex: 1; padding: 9px; border: none; border-radius: 22px; font-weight: 700; cursor: pointer; font-size: 0.78rem; }
+        .referral-actions .share { background: linear-gradient(135deg, #ffcc44, #f5a623); color: #1a0a2e; }
+        .referral-actions .copy { background: rgba(120, 80, 200, 0.18); color: #d4c0f0; }
+        .winners-modal-content { max-width: 360px !important; width: 100%; text-align: center; background: none !important; border: none !important; padding: 0 !important; max-height: none !important; overflow: visible !important; position: relative; }
+        .winning-card-halo { position: absolute; inset: -40px; background: radial-gradient(circle at 50% 45%, rgba(255, 204, 68, 0.45), transparent 62%); filter: blur(38px); z-index: 0; pointer-events: none; animation: haloPulse 2.5s ease-in-out infinite alternate; }
+        @keyframes haloPulse { 0% { opacity: 0.55; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1.12); } }
+        .winning-number-card { position: relative; z-index: 1; padding: 26px 22px 24px; border-radius: 30px; background: radial-gradient(circle at 50% 0%, rgba(255, 204, 68, 0.22), transparent 55%), radial-gradient(circle at 50% 100%, rgba(120, 80, 200, 0.25), transparent 55%), linear-gradient(160deg, #2e1c58 0%, #1a1030 50%, #241646 100%); border: 1.5px solid rgba(255, 204, 68, 0.55); box-shadow: 0 0 0 1px rgba(255, 204, 68, 0.18), 0 0 50px rgba(255, 204, 68, 0.3), 0 24px 70px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1); overflow: hidden; animation: cardIn 0.75s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes cardIn { 0% { transform: scale(0.55) translateY(30px) rotate(-4deg); opacity: 0; } 60% { transform: scale(1.06) translateY(-6px) rotate(1.5deg); opacity: 1; } 100% { transform: scale(1) translateY(0) rotate(0); opacity: 1; } }
+        .winning-number-card::before { content: ""; position: absolute; top: -10%; left: -160%; width: 160%; height: 120%; background: linear-gradient(115deg, transparent 32%, rgba(255, 240, 180, 0.42) 50%, transparent 68%); animation: cardShimmer 3.2s ease-in-out infinite; pointer-events: none; z-index: 3; }
+        @keyframes cardShimmer { 0% { left: -160%; } 55% { left: 160%; } 100% { left: 160%; } }
+        .winning-card-sparkles { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+        .winning-card-sparkles span { position: absolute; width: 4px; height: 4px; background: #ffd866; border-radius: 50%; box-shadow: 0 0 10px #ffd866, 0 0 22px rgba(255, 216, 102, 0.65); animation: sparkleTwinkle 2.4s ease-in-out infinite; }
+        .winning-card-sparkles span:nth-child(1) { top: 14%; left: 16%; animation-delay: 0s; }
+        .winning-card-sparkles span:nth-child(2) { top: 24%; right: 14%; animation-delay: 0.6s; }
+        .winning-card-sparkles span:nth-child(3) { bottom: 22%; left: 11%; animation-delay: 1.2s; }
+        .winning-card-sparkles span:nth-child(4) { bottom: 18%; right: 18%; animation-delay: 1.8s; }
+        .winning-card-sparkles span:nth-child(5) { top: 52%; left: 7%; animation-delay: 0.9s; }
+        .winning-card-sparkles span:nth-child(6) { top: 52%; right: 7%; animation-delay: 1.4s; }
+        @keyframes sparkleTwinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.5); } }
+        .winning-card-title { position: relative; z-index: 4; color: #cbb8e6; font-size: 0.68rem; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; }
+        .winning-card-round { position: relative; z-index: 4; display: inline-block; max-width: 92%; background: linear-gradient(135deg, rgba(255, 204, 68, 0.24), rgba(245, 166, 35, 0.12)); border: 1px solid rgba(255, 204, 68, 0.45); color: #ffd866; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.5px; line-height: 1.35; padding: 5px 16px; border-radius: 22px; margin-bottom: 12px; word-break: break-word; overflow-wrap: anywhere; text-transform: none; }
+        .winning-card-round.no-winner { color: #b8a0d0; border-color: rgba(184, 160, 208, 0.35); background: linear-gradient(135deg, rgba(120, 80, 200, 0.18), rgba(120, 80, 200, 0.06)); }
+        .winning-number-big { position: relative; z-index: 4; font-size: 6.2rem; font-weight: 900; line-height: 1; margin: 2px 0 10px; letter-spacing: 3px; background: linear-gradient(180deg, #fff8d6 0%, #ffcc44 42%, #f5a623 72%, #b87a15 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; filter: drop-shadow(0 0 34px rgba(255, 204, 68, 0.75)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55)); animation: numberPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes numberPop { 0% { transform: scale(0.25) rotate(-10deg); opacity: 0; } 55% { transform: scale(1.18) rotate(4deg); opacity: 1; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        .winning-card-divider { position: relative; z-index: 4; width: 62%; height: 1px; margin: 6px auto 10px; background: linear-gradient(90deg, transparent, rgba(255, 204, 68, 0.6), transparent); }
+        .winning-card-amount { position: relative; z-index: 4; display: none; font-size: 1.25rem; font-weight: 900; letter-spacing: 1.5px; margin: 0 0 8px; color: #8affb0; text-shadow: 0 0 18px rgba(138, 255, 176, 0.55), 0 2px 6px rgba(0, 0, 0, 0.6); animation: amountPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .winning-card-amount.show { display: block; }
+        .winning-card-amount .amt-label { display: block; font-size: 0.6rem; font-weight: 700; letter-spacing: 3px; color: #b8a0d0; text-shadow: none; margin-bottom: 2px; text-transform: uppercase; }
+        .winning-card-amount .amt-value { background: linear-gradient(180deg, #d6ffe6 0%, #8affb0 45%, #3fbf74 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+        @keyframes amountPop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .winning-card-sub { position: relative; z-index: 4; color: #b8a0d0; font-size: 0.68rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; }
+        @media (max-height:700px) { .winning-number-big { font-size: 4.6rem; } .winning-number-card { padding: 20px 18px 18px; } }
+        @media (max-width:380px) { .winning-number-big { font-size: 4.6rem; } .winning-number-card { padding: 20px 16px 18px; border-radius: 24px; } }
+        @media (max-width: 430px) { #usernameWalletItem { display: none !important; } }
+        @media (max-height: 700px) { #usernameWalletItem { display: none !important; } }
+
+        .ball-anim-overlay { position: fixed; inset: 0; z-index: 3500; display: none; align-items: center; justify-content: center; background: rgba(2,7,14,.88); padding: 16px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .ball-anim-overlay.active { display: flex; }
+        .ball-anim-machine { position: relative; width: min(460px, 100%); height: min(640px, 94vh); border-radius: 30px; padding: 14px; background: linear-gradient(145deg, #2a1a4a, #1a2a4a); border: 1px solid rgba(180,120,255,.28); box-shadow: 0 20px 60px rgba(0,0,0,.7); display: flex; flex-direction: column; gap: 10px; }
+        .ball-anim-glass { position: relative; flex: 1 1 auto; min-height: 0; border-radius: 22px; background: linear-gradient(180deg, #eaf2fb 0%, #cddceb 100%); border: 5px solid #b8c9d8; overflow: hidden; }
+        .ball-anim-glass::before { content: "LUCKY DRAW"; position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 900; letter-spacing: 4px; color: #8a9bad; opacity: .35; pointer-events: none; z-index: 0; }
+        .ball-anim-glass::after { content: ""; position: absolute; left: 4%; right: 4%; bottom: 2px; height: 14px; background: radial-gradient(ellipse at 50% 100%, rgba(70,90,115,.32) 0%, rgba(70,90,115,0) 72%); border-radius: 50%; pointer-events: none; z-index: 1; }
+        #baBalls { position: absolute; inset: 0; z-index: 2; }
+        .ba-ball { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; text-align: center; padding: 2px; overflow: hidden; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+        .ba-ball.ba-white { background: radial-gradient(circle at 34% 30%, #ffffff 0%, #eef1f5 55%, #b8c2cc 100%); color: #101820; box-shadow: inset -2px -3px 4px rgba(0,0,0,.14), 0 2px 3px rgba(0,0,0,.22); }
+        .ba-ball.ba-yellow { background: radial-gradient(circle at 34% 30%, #fffbe0 0%, #ffe868 40%, #d18a00 100%); color: #3d2c00; word-break: break-word; box-shadow: inset -2px -3px 4px rgba(0,0,0,.16), 0 2px 3px rgba(0,0,0,.22); }
+        .ba-ball.ba-bounce { -webkit-animation: baBounce var(--dur, 1.6s) cubic-bezier(0.37, 0, 0.63, 1) var(--delay, 0s) infinite; animation: baBounce var(--dur, 1.6s) cubic-bezier(0.37, 0, 0.63, 1) var(--delay, 0s) infinite; }
+        @-webkit-keyframes baBounce { 0%, 100% { -webkit-transform: translate3d(0, 0, 0) rotate(0deg); transform: translate3d(0, 0, 0) rotate(0deg); } 46% { -webkit-transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(140deg); transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(140deg); } 55% { -webkit-transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(200deg); transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(200deg); } }
+        @keyframes baBounce { 0%, 100% { -webkit-transform: translate3d(0, 0, 0) rotate(0deg); transform: translate3d(0, 0, 0) rotate(0deg); } 46% { -webkit-transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(140deg); transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(140deg); } 55% { -webkit-transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(200deg); transform: translate3d(var(--dx, 3px), var(--jump, -16px), 0) rotate(200deg); } }
+        .ba-hole { position: absolute; left: 50%; bottom: -3px; width: 76px; height: 38px; transform: translateX(-50%); border-radius: 76px 76px 0 0; background: #05040a; box-shadow: 0 -2px 0 2px rgba(130,150,175,.5), inset 0 6px 10px rgba(0,0,0,.9); z-index: 5; overflow: hidden; }
+        .ba-hole-lid { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; border-radius: 76px 76px 0 0; background: linear-gradient(#e6edf4, #a9b7c6); transition: transform .5s cubic-bezier(.55,0,.75,.35), opacity .45s ease; }
+        .ba-hole.open .ba-hole-lid { transform: translateY(115%); opacity: 0; }
+        .ba-drop { z-index: 60; box-shadow: inset -2px -3px 4px rgba(0,0,0,.15), 0 4px 10px rgba(0,0,0,.55) !important; will-change: transform; }
+        .ba-tray { flex: 0 0 auto; height: 70px; border-radius: 18px; background: linear-gradient(#0d1220, #1a2436); border: 1px solid rgba(180,120,255,.22); box-shadow: inset 0 4px 10px rgba(0,0,0,.6); position: relative; z-index: 3; }
+        .ball-anim-status { text-align: center; color: #c6d4e3; font-size: 14px; font-weight: 600; min-height: 22px; padding: 2px 0; }
+        .ba-winner-glow { box-shadow: 0 0 0 3px #fff, 0 0 22px 6px #ffcc44 !important; animation: baWinnerPulse .9s ease-in-out infinite alternate !important; }
+        @keyframes baWinnerPulse { 0% { filter: brightness(1); } 100% { filter: brightness(1.35); } }
+
+        .guide-help-btn { position: absolute; top: 10px; right: 12px; background: rgba(255, 204, 68, 0.15); border: 1px solid rgba(255, 204, 68, 0.45); color: #ffcc44; font-size: 0.68rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; cursor: pointer; letter-spacing: 0.4px; z-index: 5; font-family: inherit; }
+        .guide-help-btn:active { transform: translateY(1px); }
+
+        .guide-overlay { display: none; position: fixed; inset: 0; z-index: 2100; pointer-events: none; }
+        .guide-overlay.active { display: block; }
+
+        .guide-highlight { position: absolute; display: none; border: 3px solid #ffcc44; border-radius: 30px; background: rgba(255, 204, 68, 0.06); box-shadow: 0 0 0 4px rgba(255, 204, 68, 0.20), 0 0 32px rgba(255, 204, 68, 0.55); pointer-events: none; transition: left .35s cubic-bezier(0.34, 1.56, 0.64, 1), top .35s cubic-bezier(0.34, 1.56, 0.64, 1), width .35s cubic-bezier(0.34, 1.56, 0.64, 1), height .35s cubic-bezier(0.34, 1.56, 0.64, 1); animation: guideHighlightPulse 1.8s ease-in-out infinite alternate; }
+        .guide-highlight.show { display: block; }
+        @keyframes guideHighlightPulse { 0% { box-shadow: 0 0 0 4px rgba(255, 204, 68, 0.18), 0 0 22px rgba(255, 204, 68, 0.45); } 100% { box-shadow: 0 0 0 8px rgba(255, 204, 68, 0.08), 0 0 44px rgba(255, 204, 68, 0.85); } }
+
+        .guide-bubble { position: absolute; display: none; max-width: 280px; background: linear-gradient(160deg, #3a1a5e, #1e2a4e); border: 2px solid #ffcc44; border-radius: 20px; padding: 14px 16px 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 204, 68, 0.35); color: #f0e6ff; pointer-events: auto; z-index: 2200; }
+        .guide-bubble.show { display: block; animation: guideBubbleIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes guideBubbleIn { 0% { transform: scale(0.6) translateY(10px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+        .guide-bubble::after { content: ""; position: absolute; width: 12px; height: 12px; left: var(--arrow-left, 50%); transform: translateX(-50%) rotate(45deg); border: 2px solid #ffcc44; }
+        .guide-bubble.arrow-bottom::after { bottom: -7px; border-top: none; border-left: none; background: #1e2a4e; }
+        .guide-bubble.arrow-top::after { top: -7px; border-bottom: none; border-right: none; background: #3a1a5e; }
+
+        .guide-step-counter { display: inline-block; background: rgba(255, 204, 68, 0.18); color: #ffcc44; font-size: 0.62rem; font-weight: 800; padding: 2px 10px; border-radius: 12px; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .guide-text { color: #f0e6ff; font-size: 0.88rem; line-height: 1.5; margin-bottom: 10px; font-weight: 500; }
+        .guide-actions { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+        .guide-btns { display: flex; gap: 6px; }
+        .guide-btn { border: none; border-radius: 14px; padding: 6px 14px; font-weight: 800; font-size: 0.72rem; cursor: pointer; letter-spacing: 0.3px; font-family: inherit; }
+        .guide-btn.next { background: linear-gradient(135deg, #ffcc44, #f5a623); color: #1a0a2e; box-shadow: 0 3px 0 #b87a15; }
+        .guide-btn.next:active { transform: translateY(3px); box-shadow: none; }
+        .guide-btn.prev { background: rgba(120, 80, 200, 0.22); color: #d4c0f0; border: 1px solid rgba(120, 80, 200, 0.30); }
+        .guide-btn.skip { background: transparent; color: #9d8bb7; font-size: 0.68rem; padding: 4px 8px; text-decoration: underline; }
+        .guide-dismiss-x { position: absolute; top: 6px; right: 8px; background: transparent; border: none; color: #9d8bb7; font-size: 0.9rem; cursor: pointer; padding: 2px 6px; font-family: inherit; }
+        .guide-dismiss-x:active { color: #ff8a8a; }
+
+        .dev-badge { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); background: rgba(255, 80, 80, 0.85); color: #fff; font-size: 0.55rem; font-weight: 800; letter-spacing: 1.5px; padding: 2px 10px; border-radius: 10px; z-index: 9999; pointer-events: none; box-shadow: 0 2px 10px rgba(255, 80, 80, 0.45); }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="network-offline-overlay" id="networkOfflineOverlay">
+            <div class="icon">📶</div>
+            <h3>No Internet Connection</h3>
+            <p>Your connection was lost. Please check your network and try again.</p>
+            <button class="retry-btn" id="networkRetryBtn">🔄 Retry</button>
+        </div>
+        <div id="authScreen" class="auth-screen">
+            <div class="logo"><h2>🏆 <span>WINZO</span> 🏆</h2></div>
+            <div class="subtitle">Bet 15 or 30 Birr</div>
+            <div id="authError" class="auth-error"></div>
+            <div class="telegram-info" id="telegramInfo">📱 Detecting Telegram user...</div>
+            <input type="text" id="authUsername" placeholder="Username" maxlength="20" autocomplete="username">
+            <button class="auth-btn" id="authLoginBtn">Login</button>
+            <button class="auth-btn auth-btn-secondary" id="authSignupBtn">Sign Up</button>
+            <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                <span class="connection-status offline" id="authStatus">⚡ Offline</span>
+            </div>
+        </div>
+        <div id="welcomeScreen" class="welcome-screen">
+            <div class="logo">
+                <h2>🏆 <span>WINZO</span> 🏆</h2>
+                <div style="color:#b8a0d0;font-size:0.8rem;letter-spacing:1px;margin-top:4px;">Choose your bet amount</div>
+            </div>
+            <div class="bet-options">
+                <button id="bet15Btn">15 <span class="label">Birr</span></button>
+                <button id="bet30Btn">30 <span class="label">Birr</span></button>
+            </div>
+            <div class="wallet-info">Play balance: <span class="amount" id="welcomeBalance">0</span> Birr</div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="logout-btn" id="welcomeLogoutBtn">🚪 Logout</button>
+                <button class="logout-btn" id="welcomeDepositBtn" style="border-color:rgba(80,255,160,0.15);color:#8affb0;">💰 Deposit</button>
+            </div>
+        </div>
+        <div id="gameScreen">
+            <div class="title">🏆 <span style="color:#ffcc44;">WINZO</span> 🏆 · <small id="modeLabel">15 Birr</small></div>
+            <div class="bet-switcher">
+                <button class="bet-btn switch-room-btn" id="switchRoomBtn"> Switch Room</button>
+            </div>
+            <div class="wallet-bar">
+                <div class="wallet-left">
+                    <div class="wallet-item" id="usernameWalletItem"><span class="label">👤</span><span class="username" id="walletUsername">User</span></div>
+                    <div class="wallet-item"><span class="label"> M-Wallet </span><span class="amount" id="mainWallet">0</span></div>
+                    <div class="wallet-item"><span class="label"> P-Wallet </span><span class="amount" id="playWallet">0</span></div>
+                    <div class="wallet-item"><span class="label">🎁 Ref</span><span class="amount" id="refWallet">0</span></div>
+                    <div class="wallet-item" id="pendingItem" style="display:none;"><span class="label">⏳</span><span class="pending" id="pendingAmount">0</span></div>
+                </div>
+                <div class="wallet-right" style="display:flex;align-items:center;gap:3px;">
+                    <span class="status-dot offline" id="statusDot"></span>
+                    <div class="more-wrapper">
+                        <button class="more-btn" id="moreBtn">⋮</button>
+                        <div class="more-dropdown" id="moreDropdown">
+                            <div style="padding:4px 3px;">
+                                <div style="color:#7a6a9a;font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">⚙️ Actions</div>
+                                <button class="dropdown-item deposit" id="depositBtn"><span class="icon">💰</span> Deposit</button>
+                                <button class="dropdown-item withdraw" id="withdrawBtn"><span class="icon">🏦</span> Withdraw</button>
+                                <button class="dropdown-item transfer" id="transferBtn"><span class="icon">↗️</span> Transfer to Play</button>
+                                <button class="dropdown-item" id="referralBtn"><span class="icon">🎁</span> Referral</button>
+                                <button class="dropdown-item" id="customerServiceBtn"><span class="icon">💬</span> Customer Service</button>
+                                <button class="dropdown-item reconnect" id="reconnectBtn"><span class="icon">🔌</span> Reconnect</button>
+                                <button class="dropdown-item logout" id="gameLogoutBtn"><span class="icon">🚪</span> Logout</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="game-info-bar">
+                <div class="info-item">Timer: <span class="value timer" id="timerDisplay">30</span>s</div>
+                <div class="info-item">Online: <span class="value players" id="playerCount">0</span></div>
+                <div class="info-item">🏆 Prize: <span class="value bet-total" id="totalBetDisplay">0</span> Birr</div>
+            </div>
+            <div class="pick-status" id="pickStatus"><span>Pick up to <span class="highlight">3</span> numbers</span></div>
+            <div class="status-area" id="statusMessage">
+                <span>⏳ Pick up to 3 numbers · Bet: <span class="highlight" id="betDisplay">15</span> Birr</span>
+            </div>
+            <div class="profile-area">
+                <div class="profile-row">
+                    <span class="profile-label">👤</span>
+                    <span style="color:#b8a0d0;font-size:0.6rem;font-weight:600;">Your pick: <span id="selectedCount" style="color:#ffcc44;font-weight:700;">None</span></span>
+                    <span style="color:#7a6a9a;font-size:0.5rem;margin-left:auto;"><span id="gamePhaseLabel">⏳ Selecting</span></span>
+                </div>
+                <div class="num-picker-wrapper" id="numPickerWrapper">
+                    <div class="num-picker" id="numPicker"></div>
+                </div>
+            </div>
+            <div class="footer" id="hiddenCleanupFooter">7354-1834-8904-9614</div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="referralModal">
+        <div class="modal-content">
+            <h3>🎁 Refer & Earn 5%</h3>
+            <div class="referral-box">
+                <div class="referral-stat">Earn <strong>5%</strong> of every eligible win made by players you refer.</div>
+                <input class="referral-link" id="referralLink" readonly>
+                <div class="referral-actions">
+                    <button class="share" id="referralShareBtn">📤 Share</button>
+                    <button class="copy" id="referralCopyBtn">📋 Copy</button>
+                </div>
+            </div>
+            <div style="color:#b8a0d0;font-size:0.72rem;text-align:center;line-height:1.45;">Your referral link opens the Winzo Mini App directly. Your referral is attached when the new player creates an account.</div>
+            <button class="close-btn" id="referralCloseBtn" style="width:100%;padding:10px;border-radius:30px;border:none;background:rgba(120,80,200,0.15);color:#d4c0f0;font-weight:700;cursor:pointer;margin-top:12px;">Close</button>
+        </div>
+    </div>
+    <div class="modal-overlay" id="winnersModal">
+        <div class="modal-content winners-modal-content">
+            <div class="winning-card-halo"></div>
+            <div class="winning-number-card">
+                <div class="winning-card-sparkles"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="winning-card-title">🎯 Winning Number</div>
+                <div class="winning-card-round" id="winningCardWinners">Waiting for result…</div>
+                <div class="winning-number-big" id="winningNumberBig">--</div>
+                <div class="winning-card-divider"></div>
+                <div class="winning-card-amount" id="winningCardAmount">
+                    <span class="amt-label">Win Amount</span>
+                    <span class="amt-value" id="winningCardAmountValue">0 Birr</span>
+                </div>
+                <div class="winning-card-sub">This Round's Result</div>
+            </div>
+            <div style="text-align:center;margin-top:14px;color:#7a6a9a;font-size:0.6rem;letter-spacing:1px;">closes in 5s · auto restart</div>
+        </div>
+    </div>
+    <div class="deposit-modal" id="depositModal">
+        <div class="modal-content">
+            <h3> በቴሌብር ወደ 0998487148 ገቢ ያድርጉ </h3>
+            <div class="balance-info">አሁን ያሎት ብር: <span class="amount" id="depositPlayBalance">0</span></div>
+
+            <div class="paste-box">
+                <label class="paste-label" for="depositPasteText">📋 የቴሌብር መልእክት እዚህ ይለጥፉ / Paste Telebirr SMS here</label>
+                <textarea id="depositPasteText" class="modal-input paste-textarea" placeholder="Copy the Telebirr SMS you received and paste it here. The Amount and Reference will be filled automatically."></textarea>
+                <div class="paste-actions">
+                    <button type="button" id="extractFromTextBtn" class="paste-extract-btn">🔍 Extract</button>
+                    <span id="textExtractStatus" class="paste-status"></span>
+                </div>
+            </div>
+
+            <div class="paste-divider"><span>OR / ወይም</span></div>
+
+            <input type="number" class="modal-input" id="depositAmount" placeholder="Amount" min="1" step="1">
+            <input type="text" class="modal-input" id="depositReference" placeholder="Reference number" maxlength="20">
+            <div style="margin: 8px 0;">
+                <label style="color:#b8a0d0;font-size:0.8rem;"> Screenshot ይላኩ</label>
+                <input type="file" id="depositImage" accept="image/*" style="width:100%;padding:6px;background:rgba(0,0,0,0.3);border:1px solid rgba(120,80,200,0.2);border-radius:30px;color:#f0e6ff;">
+                <div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap;">
+                    <button id="extractRefBtn" style="background:rgba(80,255,160,0.08);border:1px solid rgba(80,255,160,0.15);border-radius:30px;padding:4px 16px;color:#8affb0;font-size:0.75rem;cursor:pointer;">🔍 Extract</button>
+                    <span id="ocrStatus" style="color:#ffd866;font-size:0.7rem;"></span>
+                </div>
+            </div>
+            <div class="modal-error" id="depositError"></div>
+            <div class="modal-btns">
+                <button class="confirm" id="depositConfirm">Send</button>
+                <button class="cancel" id="depositCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div class="withdraw-modal" id="withdrawModal">
+        <div class="modal-content">
+            <h3>ከዋናው ዋሌት ወጪ ማዘዣ</h3>
+            <div class="balance-info">ያለው የብር መጠን: <span class="amount" id="withdrawAvailableBalance">0</span> ብር</div>
+            <input type="text" class="modal-input" id="withdrawName" placeholder="Full Name" required>
+            <input type="tel" class="modal-input" id="withdrawPhone" placeholder="Phone Number" required>
+            <input type="number" class="modal-input" id="withdrawAmount" placeholder="Amount" min="1" required>
+            <div class="modal-error" id="withdrawError"></div>
+            <div class="modal-btns">
+                <button class="confirm" id="withdrawConfirm">Send</button>
+                <button class="cancel" id="withdrawCancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div class="transaction-modal" id="transactionModal">
+        <div class="modal-content">
+            <h3>💳 Transaction Request</h3>
+            <div class="status-text pending" id="transactionStatus">⏳ Pending admin approval...</div>
+            <button class="close-btn" id="transactionCloseBtn">OK</button>
+        </div>
+    </div>
+    <div class="ocr-progress-modal" id="ocrProgressModal">
+        <div class="modal-content">
+            <div class="spinner" id="ocrSpinner"></div>
+            <div class="done-icon" id="ocrDoneIcon">✅</div>
+            <div class="status-text" id="ocrProgressStatus">Extracting text from image...</div>
+            <div class="sub-text" id="ocrProgressSub">Please wait, this may take a few seconds.</div>
+        </div>
+    </div>
+    <div class="waiting-modal" id="waitingModal">
+        <h3>✋</h3>
+        <p>ሌላ ተጫዋች እስከሚገባ እባክዎትን ትንሽ ይጠብቁ!</p>
+        <button class="close-waiting" id="closeWaitingBtn">✕ Dismiss</button>
+    </div>
+    <div class="toast" id="welcomeToast">
+        <span class="icon">🎉</span>
+        <h3>Welcome to Winzo!</h3>
+        <p>You've been given <strong>30 Birr</strong> in your play wallet. Good luck!</p>
+    </div>
+
+    <div class="tx-result-modal" id="transactionResultModal">
+        <div class="tx-result-card">
+            <div class="tx-result-icon" id="txResultIcon">✅</div>
+            <h3 class="tx-result-title" id="txResultTitle">Request Approved</h3>
+            <p class="tx-result-msg" id="txResultMessage">Your request is approved</p>
+            <button class="tx-result-ok" id="txResultOkBtn">OK</button>
+        </div>
+    </div>
+
+    <div class="broadcast-modal" id="broadcastModal">
+        <div class="broadcast-card">
+            <div class="broadcast-icon">📢</div>
+            <h3 class="broadcast-title" id="broadcastTitle">Announcement</h3>
+            <p class="broadcast-msg" id="broadcastMsg"></p>
+            <button class="broadcast-ok" id="broadcastOkBtn">OK</button>
+        </div>
+    </div>
+
+    <div class="sticky-broadcast-overlay" id="stickyBroadcastOverlay">
+        <div class="sticky-broadcast-card">
+            <div class="sticky-badge">SERVICE UPDATE</div>
+            <div class="sticky-spinner"></div>
+            <h2 class="sticky-title" id="stickyTitle">Game Temporarily Paused</h2>
+            <p class="sticky-msg" id="stickyMsg"></p>
+            <div class="sticky-note">This message will disappear automatically when the admin finishes.</div>
+        </div>
+    </div>
+
+    <canvas id="fireworksCanvas"></canvas>
+
+    <div id="ballAnimOverlay" class="ball-anim-overlay">
+      <div class="ball-anim-machine">
+        <div class="ball-anim-glass" id="baGlass">
+          <div id="baBalls"></div>
+          <div class="ba-hole" id="baHole"><div class="ba-hole-lid" id="baHoleLid"></div></div>
+        </div>
+        <div class="ba-tray" id="baTray"></div>
+        <div id="baStatus" class="ball-anim-status">Ready.</div>
+      </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  DEV MODE
+        // ============================================================
+        const DEV_MODE = true;
+
+        // ============================================================
+        //  SERVER WEBSOCKET
+        //  Replace with your Codespaces forwarded URL:
+        //  wss://<codespace-name>-8080.app.github.dev
+        // ============================================================
+        const SERVER_WS_URL = window.WINZO_SERVER_WS_URL || new URLSearchParams(location.search).get('server') || 'wss://<your-codespace-name>-8080.app.github.dev';
+        let client = null;
+
+        // ============================================================
+        //  ERROR HANDLER
+        // ============================================================
+        window.WINZO_ERRORS = [];
+        window.WINZO_RECORD_ERROR = function (kind, payload) {
+            const entry = { kind, payload: String(payload && (payload.message || payload)).slice(0, 500), at: Date.now() };
+            window.WINZO_ERRORS.push(entry);
+            if (window.WINZO_ERRORS.length > 50) window.WINZO_ERRORS.shift();
+            try { console.error('[WINZO-' + kind + ']', payload); } catch (_) {}
+        };
+        window.addEventListener('error', (e) => window.WINZO_RECORD_ERROR('ERROR', e.error || e.message || e));
+        window.addEventListener('unhandledrejection', (e) => window.WINZO_RECORD_ERROR('PROMISE', e.reason || e));
+
+        // ============================================================
+        //  CONSTANTS
+        // ============================================================
+        const PAYOUT_RATE = 0.80;
+        const TELEGRAM_BOT_LINK = 'http://t.me/WinzoBettingBot';
+        const FIREBASE_REST_URL = 'https://renewed-8fe38-default-rtdb.firebaseio.com';
+
+        let telegramDetectedUsername = null;
+        let pendingReferralCode = null;
+
+        function captureReferralCode() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                let ref = urlParams.get('ref') || urlParams.get('start') || null;
+                if (!ref && tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ref = tg.initDataUnsafe.start_param;
+                if (ref && ref.indexOf('ref_') === 0) ref = ref.slice(4);
+                if (ref) {
+                    ref = decodeURIComponent(ref).replace(/^@/, '').trim();
+                    if (/^[A-Za-z0-9_]{1,32}$/.test(ref)) { pendingReferralCode = ref; localStorage.setItem('winzo_pending_referral', ref); }
+                } else if (!pendingReferralCode) {
+                    const saved = localStorage.getItem('winzo_pending_referral');
+                    if (saved && /^[A-Za-z0-9_]{1,32}$/.test(saved)) pendingReferralCode = saved;
+                }
+            } catch (e) {}
+        }
+
+        // ============================================================
+        //  AUDIO
+        // ============================================================
+        let audioCtx = null; let audioInitialized = false;
+        function initAudio() { if (!audioInitialized) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioInitialized = true; } catch (e) {} } return audioCtx; }
+        ['touchstart', 'pointerdown', 'click', 'keydown'].forEach(ev => {
+            document.addEventListener(ev, function resumeOnce() {
+                const ctx = initAudio();
+                if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+                document.removeEventListener(ev, resumeOnce);
+            }, { once: false, passive: true });
+        });
+        function playTone(freq, duration, type = 'sine', volume = 0.30, delay = 0) {
+            const ctx = initAudio(); if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            try {
+                const osc = ctx.createOscillator(); const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+                gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+                gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + delay + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + duration);
+            } catch (e) {}
+        }
+        function playWinningAudio() {
+            [523.25, 659.25, 783.99, 1046.50].forEach((f,i) => playTone(f, [0.20,0.20,0.25,0.35][i], 'sine', 0.28, i*0.16));
+            playTone(1318.51, 0.20, 'sine', 0.10, 0.55);
+            playTone(1567.98, 0.15, 'sine', 0.07, 0.70);
+        }
+        function playNoWinnerAudio() {
+            [783.99, 659.25, 523.25].forEach((f,i) => playTone(f, [0.22,0.22,0.28][i], 'sine', 0.22, i*0.20));
+            playTone(392.00, 0.25, 'sine', 0.08, 0.50);
+        }
+
+        // ============================================================
+        //  FIREWORKS
+        // ============================================================
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx2 = canvas.getContext('2d');
+        let fireworks = []; let particles = []; let fireworksRunning = false;
+        let fireworksRAF = null; let fireworksAutoStopTimer = null;
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        class Firework {
+            constructor(opts) {
+                opts = opts || {};
+                this.x = (opts.x != null) ? opts.x : Math.random() * canvas.width;
+                this.y = (opts.y != null) ? opts.y : canvas.height + 20;
+                this.targetY = (opts.targetY != null) ? opts.targetY : Math.random() * canvas.height * 0.45 + canvas.height * 0.08;
+                this.speed = 5 + Math.random() * 5;
+                this.trail = []; this.exploded = false;
+                this.size = 2.5 + Math.random() * 2.5;
+                this.hue = (Math.random() < 0.45) ? 35 + Math.random() * 22 : Math.random() * 360;
+            }
+            update() {
+                if (this.exploded) return;
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 14) this.trail.shift();
+                this.y -= this.speed;
+                if (this.y <= this.targetY) { this.exploded = true; this.explode(); }
+            }
+            explode() {
+                const count = 120 + Math.floor(Math.random() * 120);
+                const baseHue = this.hue;
+                const isGold = baseHue > 30 && baseHue < 60;
+                const colors = [`hsl(${baseHue},95%,65%)`, `hsl(${(baseHue+20)%360},95%,60%)`, `hsl(${(baseHue-20+360)%360},95%,65%)`, '#ffffff', '#fff8d6'];
+                for (let i = 0; i < count; i++) {
+                    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.15;
+                    const speed = 2 + Math.random() * 7;
+                    particles.push({ x: this.x, y: this.y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, life: 1, decay: 0.006+Math.random()*0.012, size: 2.5+Math.random()*3.5, color: colors[Math.floor(Math.random()*colors.length)], gravity: 0.045, sparkle: isGold && Math.random() < 0.35 });
+                }
+                if (isGold) {
+                    const ringCount = 40 + Math.floor(Math.random() * 30);
+                    for (let i = 0; i < ringCount; i++) {
+                        const angle = (Math.PI * 2 * i) / ringCount;
+                        const speed = 6 + Math.random() * 2;
+                        particles.push({ x: this.x, y: this.y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, life: 1, decay: 0.008, size: 3, color: '#ffd866', gravity: 0.03, sparkle: true });
+                    }
+                }
+            }
+            draw() {
+                if (this.exploded) return;
+                for (let i = 0; i < this.trail.length; i++) {
+                    const alpha = i / this.trail.length;
+                    ctx2.beginPath();
+                    ctx2.arc(this.trail[i].x, this.trail[i].y, this.size * alpha * 0.9, 0, Math.PI * 2);
+                    ctx2.fillStyle = `rgba(255,220,150,${alpha * 0.7})`;
+                    ctx2.fill();
+                }
+                ctx2.beginPath(); ctx2.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx2.fillStyle = '#fff'; ctx2.fill();
+                ctx2.shadowBlur = 24; ctx2.shadowColor = '#f5a623';
+                ctx2.fill(); ctx2.shadowBlur = 0;
+            }
+        }
+        function drawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += p.gravity;
+                p.vx *= 0.985; p.vy *= 0.985; p.life -= p.decay;
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
+                ctx2.globalAlpha = p.life;
+                ctx2.shadowBlur = p.sparkle ? 18 : 10;
+                ctx2.shadowColor = p.color;
+                ctx2.beginPath();
+                const size = p.sparkle ? p.size * p.life * (1 + Math.sin(Date.now() * 0.02 + p.x) * 0.3) : p.size * p.life;
+                ctx2.arc(p.x, p.y, size, 0, Math.PI * 2);
+                ctx2.fillStyle = p.color; ctx2.fill();
+                ctx2.shadowBlur = 0; ctx2.globalAlpha = 1;
+            }
+        }
+        function animateFireworks() {
+            if (!fireworksRunning) { ctx2.clearRect(0, 0, canvas.width, canvas.height); return; }
+            ctx2.clearRect(0, 0, canvas.width, canvas.height);
+            if (Math.random() < 0.20 && fireworks.length < 12) fireworks.push(new Firework());
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const f = fireworks[i]; f.update(); f.draw();
+                if (f.exploded) fireworks.splice(i, 1);
+            }
+            drawParticles();
+            fireworksRAF = requestAnimationFrame(animateFireworks);
+        }
+        function startFireworks() {
+            if (fireworksRunning) return;
+            fireworksRunning = true; fireworks = []; particles = [];
+            canvas.classList.add('active');
+            for (let i = 0; i < 6; i++) fireworks.push(new Firework({ x: (i+0.5) * (canvas.width/6) + (Math.random()-0.5)*60, y: canvas.height+20, targetY: canvas.height * (0.15 + Math.random()*0.35) }));
+            if (fireworksRAF) cancelAnimationFrame(fireworksRAF);
+            animateFireworks();
+            if (fireworksAutoStopTimer) clearTimeout(fireworksAutoStopTimer);
+            fireworksAutoStopTimer = setTimeout(() => stopFireworks(), 10000);
+        }
+        function stopFireworks() {
+            fireworksRunning = false; canvas.classList.remove('active');
+            if (fireworksRAF) { cancelAnimationFrame(fireworksRAF); fireworksRAF = null; }
+            if (fireworksAutoStopTimer) { clearTimeout(fireworksAutoStopTimer); fireworksAutoStopTimer = null; }
+            ctx2.clearRect(0, 0, canvas.width, canvas.height);
+            fireworks = []; particles = [];
+        }
+
+        // ============================================================
+        //  TELEGRAM
+        // ============================================================
+        let tg = null; let telegramUser = null; let isTelegram = false;
+        let telegramDetectionAttempts = 0; const maxTelegramAttempts = 5;
+        function detectTelegramUser() {
+            try {
+                tg = window.Telegram?.WebApp;
+                if (tg) {
+                    tg.ready(); tg.expand(); isTelegram = true;
+                    let user = null;
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.user) user = tg.initDataUnsafe.user;
+                    else if (tg.initData && tg.initData.user) {
+                        try { const parsed = JSON.parse(decodeURIComponent(tg.initData)); if (parsed.user) user = parsed.user; } catch (e) {}
+                    }
+                    if (user) {
+                        telegramUser = user; captureReferralCode();
+                        const name = user.username || user.first_name || '';
+                        const infoEl = document.getElementById('telegramInfo');
+                        if (infoEl) {
+                            if (name) { infoEl.textContent = '✅ Detected Telegram: @' + name; infoEl.className = 'telegram-info detected'; telegramDetectedUsername = name; applyTelegramAutoLogin(name); }
+                            else { infoEl.textContent = '📱 Telegram detected (no username). Enter manually.'; infoEl.className = 'telegram-info not-detected'; telegramDetectedUsername = null; }
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            } catch (e) { return false; }
+        }
+        function attemptTelegramDetection() {
+            if (telegramDetectionAttempts >= maxTelegramAttempts) {
+                const infoEl = document.getElementById('telegramInfo');
+                if (infoEl) { infoEl.textContent = '📱 Telegram not detected. Enter manually.'; infoEl.className = 'telegram-info not-detected'; }
+                return false;
+            }
+            telegramDetectionAttempts++;
+            const detected = detectTelegramUser();
+            if (!detected && telegramDetectionAttempts < maxTelegramAttempts) setTimeout(attemptTelegramDetection, 500);
+            return detected;
+        }
+        function applyTelegramAutoLogin(username) {
+            const usernameInput = document.getElementById('authUsername');
+            if (!usernameInput) return;
+            usernameInput.value = username; usernameInput.readOnly = true; usernameInput.style.color = '#8affb0';
+            usernameInput.addEventListener('focus', function() { this.value = username; });
+            usernameInput.addEventListener('input', function() { this.value = username; });
+            usernameInput.addEventListener('keydown', function(e) { e.preventDefault(); return false; });
+        }
+
+        // ============================================================
+        //  FIREBASE (READ-ONLY)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyA2VCeCTCx_NAcsxK-es1DCTmRjOD43dt4",
+            authDomain: "renewed-8fe38.firebaseapp.com",
+            databaseURL: "https://renewed-8fe38-default-rtdb.firebaseio.com",
+            projectId: "renewed-8fe38",
+            storageBucket: "renewed-8fe38.firebasestorage.app",
+            messagingSenderId: "741808375705",
+            appId: "1:741808375705:web:c961f1664a0e17ad257508",
+            measurementId: "G-04EW1D775E"
+        };
+        let firebaseAvailable = false; let database = null; let storage = null;
+        let transactionListeners = {};
+        let userWalletRef = null;
+        let pendingTxListenerRef = null;
+        let pendingTxListenerHandler = null;
+        let lastResultListenerRef = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database(); storage = firebase.storage();
+            firebaseAvailable = true;
+        } catch (e) {
+            firebaseAvailable = false;
+            window.WINZO_RECORD_ERROR('FIREBASE-INIT', e);
+        }
+
+        const APP_VERSION = '11.0';
+        const DB = {
+            getCurrentUser() { return localStorage.getItem('bingo_current_user') || null; },
+            setCurrentUser(u) { if (u) localStorage.setItem('bingo_current_user', u); else localStorage.removeItem('bingo_current_user'); },
+            getSavedCredentials() { try { return JSON.parse(localStorage.getItem('bingo_saved_credentials') || 'null'); } catch { return null; } },
+            setSavedCredentials(u, p) { localStorage.setItem('bingo_saved_credentials', JSON.stringify({ username: u, password: p })); },
+            setSavedBet(b) { if (b) localStorage.setItem('bingo_saved_bet', b.toString()); else localStorage.removeItem('bingo_saved_bet'); },
+            getToastShown() { return localStorage.getItem('bingo_toast_shown') === 'true'; },
+            setToastShown() { localStorage.setItem('bingo_toast_shown', 'true'); },
+            getVersion() { return localStorage.getItem('bingo_app_version'); },
+            setVersion() { localStorage.setItem('bingo_app_version', APP_VERSION); },
+            clearAll() {
+                localStorage.removeItem('bingo_current_user'); localStorage.removeItem('bingo_saved_bet');
+                localStorage.removeItem('bingo_toast_shown'); localStorage.removeItem('bingo_app_version');
+            }
+        };
+        if (DB.getVersion() !== APP_VERSION) { DB.clearAll(); DB.setVersion(); }
+
+        // ============================================================
+        //  STATE
+        // ============================================================
+        let currentUser = null;
+        let gameRef = null;
+        let isGameInitialized = false;
+        let currentBet = 15;
+        let currentRoom = 'room_15';
+        let walletData = { main: 0, play: 0, pending: 0, refEarn: 0 };
+
+        let engineState = {
+            players: {}, allTakenNumbers: new Set(), drawnNumbers: [], winners: [],
+            gamePhase: 'selection', roundNumber: 1, timer: 30, activePlayersCount: 0,
+            playerNames: [], prizePool: 0, winnersModalShown: false
+        };
+
+        let timerInterval = null; let isTimerRunning = false;
+        let resultsCountdownInterval = null; let isResultsCountdownRunning = false;
+
+        let displayedCardRound = null;
+        let lastResultData = null;
+        let cardFetchRetryTimer = null;
+        let cardFetchRetryCount = 0;
+
+        let gamePausedBySticky = false;
+        let activeStickyBroadcast = null;
+        let stickyBroadcastRef = null;
+        let stickyBroadcastHandler = null;
+
+        let isNetworkConnected = true; let networkListenerActive = false;
+        const networkOverlay = document.getElementById('networkOfflineOverlay');
+        const networkRetryBtn = document.getElementById('networkRetryBtn');
+
+        let lastRoomSnapshotRaw = null;
+        let localSelectionRound = null;
+        let localSelectionPicks = [];
+        const MAX_PICKS_PER_ROUND = 3;
+        const pendingPickOps = new Set();
+        let serverTimeOffset = 0;
+        let phaseDeadline = 0;
+        const SELECTION_SECONDS = 30;
+
+        let lastSuccessfulSyncAt = 0;
+        let resilienceIntervalId = null;
+
+        let roomConnectionGeneration = 0;
+        let productionRenderQueued = false;
+        let updatePending = false;
+
+        // ============================================================
+        //  DOM REFS
+        // ============================================================
+        const $ = (id) => document.getElementById(id);
+        const authScreen = $('authScreen'); const welcomeScreen = $('welcomeScreen'); const gameScreen = $('gameScreen');
+        const authError = $('authError'); const authUsername = $('authUsername');
+        const authLoginBtn = $('authLoginBtn'); const authSignupBtn = $('authSignupBtn'); const authStatus = $('authStatus');
+        const telegramInfo = $('telegramInfo'); const bet15Btn = $('bet15Btn'); const bet30Btn = $('bet30Btn');
+        const welcomeBalance = $('welcomeBalance'); const welcomeLogoutBtn = $('welcomeLogoutBtn'); const welcomeDepositBtn = $('welcomeDepositBtn');
+        const switchRoomBtn = $('switchRoomBtn'); const referralBtn = $('referralBtn'); const customerServiceBtn = $('customerServiceBtn');
+        const reconnectBtn = $('reconnectBtn');
+        const referralModal = $('referralModal'); const referralLink = $('referralLink'); const referralShareBtn = $('referralShareBtn');
+        const referralCopyBtn = $('referralCopyBtn'); const referralCloseBtn = $('referralCloseBtn');
+        const walletUsername = $('walletUsername'); const mainWalletEl = $('mainWallet'); const playWalletEl = $('playWallet');
+        const refWalletEl = $('refWallet'); const pendingItem = $('pendingItem'); const pendingAmount = $('pendingAmount');
+        const moreBtn = $('moreBtn'); const moreDropdown = $('moreDropdown'); const statusDot = $('statusDot');
+        const modeLabel = $('modeLabel'); const betDisplay = $('betDisplay'); const pickStatus = $('pickStatus');
+        const depositBtn = $('depositBtn'); const withdrawBtn = $('withdrawBtn'); const transferBtn = $('transferBtn');
+        const gameLogoutBtn = $('gameLogoutBtn'); const depositModal = $('depositModal'); const withdrawModal = $('withdrawModal');
+        const depositAmount = $('depositAmount'); const depositReference = $('depositReference'); const depositImage = $('depositImage');
+        const extractRefBtn = $('extractRefBtn'); const ocrStatus = $('ocrStatus');
+        const withdrawName = $('withdrawName'); const withdrawPhone = $('withdrawPhone'); const withdrawAmountEl = $('withdrawAmount');
+        const depositError = $('depositError'); const withdrawError = $('withdrawError');
+        const depositPlayBalance = $('depositPlayBalance'); const withdrawAvailableBalance = $('withdrawAvailableBalance');
+        const depositConfirm = $('depositConfirm'); const depositCancel = $('depositCancel');
+        const withdrawConfirm = $('withdrawConfirm'); const withdrawCancel = $('withdrawCancel');
+        const winnersModal = $('winnersModal'); const transactionModal = $('transactionModal');
+        const transactionStatus = $('transactionStatus'); const transactionCloseBtn = $('transactionCloseBtn');
+        const waitingModal = $('waitingModal'); const closeWaitingBtn = $('closeWaitingBtn'); const welcomeToast = $('welcomeToast');
+        const statusEl = $('statusMessage');
+        const numPicker = $('numPicker');
+        const selectedCountSpan = $('selectedCount'); const prizeDisplay = $('prizeDisplay');
+        const timerDisplay = $('timerDisplay'); const playerCountEl = $('playerCount');
+        const gamePhaseLabel = $('gamePhaseLabel'); const totalBetDisplayEl = $('totalBetDisplay');
+        const ocrProgressModal = $('ocrProgressModal'); const ocrSpinner = $('ocrSpinner');
+        const ocrDoneIcon = $('ocrDoneIcon'); const ocrProgressStatus = $('ocrProgressStatus'); const ocrProgressSub = $('ocrProgressSub');
+        const winningCardWinnersEl = $('winningCardWinners');
+        const winningCardAmountEl = $('winningCardAmount');
+        const winningCardAmountValueEl = $('winningCardAmountValue');
+        const broadcastModal = $('broadcastModal');
+        const broadcastMsgEl = $('broadcastMsg');
+        const broadcastOkBtn = $('broadcastOkBtn');
+        const broadcastTitleEl = $('broadcastTitle');
+        const stickyOverlay = $('stickyBroadcastOverlay');
+        const stickyMsgEl = $('stickyMsg');
+        const stickyTitleEl = $('stickyTitle');
+
+        // ============================================================
+        //  NETWORK LISTENER
+        // ============================================================
+        function startNetworkListener() {
+            if (networkListenerActive) return;
+            networkListenerActive = true;
+            window.addEventListener('online', handleNetworkOnline);
+            window.addEventListener('offline', handleNetworkOffline);
+            if (!navigator.onLine) handleNetworkOffline();
+        }
+        function stopNetworkListener() {
+            networkListenerActive = false;
+            window.removeEventListener('online', handleNetworkOnline);
+            window.removeEventListener('offline', handleNetworkOffline);
+            networkOverlay.classList.remove('active');
+        }
+        function handleNetworkOnline() {
+            networkOverlay.classList.remove('active');
+            updateStatus(isNetworkConnected ? '✅ Network restored.' : '🔄 Network restored. Reconnecting…');
+            if (client && currentUser && client.ws?.readyState !== 1 && !client.connecting) client.connect(client.initData, client.refCode, client.roomId);
+        }
+        function handleNetworkOffline() {
+            if (!isNetworkConnected) return;
+            isNetworkConnected = false;
+            stopTimer();
+            networkOverlay.classList.add('active');
+            updateStatus('⚠️ No internet connection.');
+            document.querySelectorAll('.num-btn').forEach(btn => btn.disabled = true);
+        }
+        function enableNetworkListener() { if (firebaseAvailable && currentUser) startNetworkListener(); }
+        if (networkRetryBtn) networkRetryBtn.onclick = () => {
+            if (navigator.onLine) handleNetworkOnline();
+            else { networkOverlay.classList.remove('active'); setTimeout(() => networkOverlay.classList.add('active'), 100); }
+        };
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden || !currentUser) return;
+            if (client) client.send({ type: 'wallet-refresh' });
+        });
+
+        // ============================================================
+        //  GAME RECOVERY
+        //  WebSocket is the single authoritative realtime/recovery path.
+        //  No Firebase REST polling fallback is used for game state.
+        // ============================================================
+        function markSyncReceived() { lastSuccessfulSyncAt = Date.now(); }
+        function startResilienceEngine() {}
+        function stopResilienceEngine() {}
+
+        // ============================================================
+        //  HELPERS
+        // ============================================================
+        function getServerNow() { return Date.now() + serverTimeOffset; }
+        function getRemainingSeconds(deadline) { return Number(deadline) ? Math.max(0, Math.ceil((Number(deadline) - getServerNow()) / 1000)) : 0; }
+        function safeProductionName(value) { return String(value ?? '').replace(/[<>"'`]/g, '').trim().slice(0, 64); }
+
+        function getPlayerPicks(player) {
+            if (!player) return [];
+            if (Array.isArray(player.picks)) return player.picks.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 200);
+            if (player.pick !== null && player.pick !== undefined) {
+                const n = Number(player.pick);
+                return Number.isInteger(n) && n >= 1 && n <= 200 ? [n] : [];
+            }
+            return [];
+        }
+        function getEffectivePicksFor(name) {
+            if (name === currentUser && localSelectionRound === engineState.roundNumber && engineState.gamePhase === 'selection') return [...localSelectionPicks];
+            return getPlayerPicks(engineState.players[name]);
+        }
+        function getEffectiveRoundFor(name) {
+            const p = engineState.players[name];
+            if (p && p.round != null && isFinite(Number(p.round))) return Number(p.round);
+            if (name === currentUser && localSelectionRound === engineState.roundNumber && localSelectionPicks.length > 0) return engineState.roundNumber;
+            return null;
+        }
+        function getTotalPicks() {
+            const names = new Set(Object.keys(engineState.players || {}));
+            if (currentUser) names.add(currentUser);
+            let count = 0;
+            names.forEach(name => {
+                const picks = getEffectivePicksFor(name);
+                if (!picks.length) return;
+                if (getEffectiveRoundFor(name) === engineState.roundNumber) count += picks.length;
+            });
+            return count;
+        }
+        function updateTotalBetDisplay() {
+            if (!totalBetDisplayEl) return;
+            const bet = Number(currentBet || 0);
+            const totalPicks = getTotalPicks();
+            const pool = Math.floor(bet * totalPicks * PAYOUT_RATE);
+            totalBetDisplayEl.textContent = String(pool);
+        }
+        function updatePrizeDisplay() { updateTotalBetDisplay(); }
+        function updateStatus(msg, isWin = false) {
+            if (!statusEl) return;
+            const text = String(msg ?? '');
+            if (isWin) { statusEl.textContent = `🏆 ${text}`; statusEl.classList.add('win-badge'); }
+            else { statusEl.textContent = text; statusEl.classList.remove('win-badge'); }
+        }
+        function setConnectionStatus(online, message) {
+            const cls = online ? 'online' : 'offline';
+            if (authStatus) { authStatus.textContent = online ? '🌐 Online' : '⚡ Offline'; authStatus.className = 'connection-status ' + cls; }
+            if (statusDot) statusDot.className = 'status-dot ' + cls;
+            if (message) updateStatus(message);
+        }
+
+        function getMyPicks() {
+            if (!currentUser) return [];
+            if (localSelectionRound === engineState.roundNumber && engineState.gamePhase === 'selection') return [...localSelectionPicks];
+            if (!engineState.players[currentUser]) return [];
+            return getPlayerPicks(engineState.players[currentUser]).slice(0, MAX_PICKS_PER_ROUND);
+        }
+        function getMyPick() { const picks = getMyPicks(); return picks.length ? picks[0] : null; }
+
+        function syncLocalPlayerPicks(picks, round, betDeducted) {
+            const clean = [...new Set((picks || []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 200))].slice(0, MAX_PICKS_PER_ROUND);
+            localSelectionRound = Number(round);
+            localSelectionPicks = clean;
+            if (currentUser) {
+                if (!engineState.players[currentUser]) engineState.players[currentUser] = { name: currentUser };
+                const p = engineState.players[currentUser];
+                p.name = currentUser; p.picks = [...clean]; p.pick = clean.length ? clean[0] : null;
+                p.ready = clean.length > 0; p.bet = currentBet;
+                p.round = clean.length ? Number(round) : null;
+                p.betDeducted = betDeducted != null ? !!betDeducted : clean.length > 0;
+            }
+        }
+
+        // ============================================================
+        //  GUIDE (Amharic)
+        // ============================================================
+        const Guide = (function () {
+            let overlayEl = null, highlightEl = null, bubbleEl = null, counterEl = null, textEl = null;
+            let prevBtnEl = null, nextBtnEl = null, skipBtnEl = null, dismissBtnEl = null;
+            let currentSteps = null, currentIndex = 0, currentTargetSelector = null, currentGuideKey = null;
+            let repositionRaf = null;
+
+            function ensureDom() {
+                if (overlayEl) return;
+                overlayEl = document.createElement('div');
+                overlayEl.className = 'guide-overlay';
+                overlayEl.innerHTML = `
+                    <div class="guide-highlight" id="guideHighlight"></div>
+                    <div class="guide-bubble" id="guideBubble">
+                        <button class="guide-dismiss-x" id="guideDismissX" type="button" aria-label="Close">✕</button>
+                        <div class="guide-step-counter" id="guideStepCounter">ደረጃ 1/1</div>
+                        <div class="guide-text" id="guideText"></div>
+                        <div class="guide-actions">
+                            <button class="guide-btn skip" id="guideSkipBtn" type="button">ዝለል</button>
+                            <div class="guide-btns">
+                                <button class="guide-btn prev" id="guidePrevBtn" type="button">← ቀዳሚ</button>
+                                <button class="guide-btn next" id="guideNextBtn" type="button">ቀጣይ →</button>
+                            </div>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlayEl);
+                highlightEl = document.getElementById('guideHighlight');
+                bubbleEl = document.getElementById('guideBubble');
+                counterEl = document.getElementById('guideStepCounter');
+                textEl = document.getElementById('guideText');
+                prevBtnEl = document.getElementById('guidePrevBtn');
+                nextBtnEl = document.getElementById('guideNextBtn');
+                skipBtnEl = document.getElementById('guideSkipBtn');
+                dismissBtnEl = document.getElementById('guideDismissX');
+                prevBtnEl.addEventListener('click', () => showStep(currentIndex - 1));
+                nextBtnEl.addEventListener('click', () => {
+                    if (!currentSteps) return;
+                    if (currentIndex >= currentSteps.length - 1) { markSeen(); stop(); }
+                    else showStep(currentIndex + 1);
+                });
+                skipBtnEl.addEventListener('click', () => { markSeen(); stop(); });
+                dismissBtnEl.addEventListener('click', () => { markSeen(); stop(); });
+                window.addEventListener('resize', schedulePosition);
+                window.addEventListener('scroll', schedulePosition, true);
+            }
+            function schedulePosition() {
+                if (!currentSteps || !currentTargetSelector) return;
+                if (repositionRaf) cancelAnimationFrame(repositionRaf);
+                repositionRaf = requestAnimationFrame(positionAll);
+            }
+            function showStep(i) {
+                if (!currentSteps || i < 0 || i >= currentSteps.length) return;
+                currentIndex = i;
+                const step = currentSteps[i];
+                const target = document.querySelector(step.target);
+                if (!target) {
+                    if (i < currentSteps.length - 1) showStep(i + 1);
+                    else stop();
+                    return;
+                }
+                currentTargetSelector = step.target;
+                try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+                counterEl.textContent = `ደረጃ ${i + 1}/${currentSteps.length}`;
+                textEl.textContent = step.text;
+                prevBtnEl.style.display = i === 0 ? 'none' : 'inline-block';
+                nextBtnEl.textContent = i === currentSteps.length - 1 ? 'ጨርስ ✓' : 'ቀጣይ →';
+                bubbleEl.classList.remove('show');
+                void bubbleEl.offsetWidth;
+                bubbleEl.classList.add('show');
+                highlightEl.classList.add('show');
+                setTimeout(positionAll, 60);
+                setTimeout(positionAll, 340);
+            }
+            function positionAll() {
+                if (!currentTargetSelector) return;
+                const target = document.querySelector(currentTargetSelector);
+                if (!target) return;
+                const rect = target.getBoundingClientRect();
+                const vw = window.innerWidth, vh = window.innerHeight, pad = 6;
+                highlightEl.style.left = (rect.left - pad) + 'px';
+                highlightEl.style.top = (rect.top - pad) + 'px';
+                highlightEl.style.width = (rect.width + pad * 2) + 'px';
+                highlightEl.style.height = (rect.height + pad * 2) + 'px';
+                const bubbleW = Math.min(280, vw - 24);
+                bubbleEl.style.width = bubbleW + 'px';
+                const bH = bubbleEl.offsetHeight || 140;
+                const spaceBelow = vh - rect.bottom;
+                const spaceAbove = rect.top;
+                const placeBelow = spaceBelow >= bH + 20 || spaceBelow >= spaceAbove;
+                let bLeft = rect.left + rect.width / 2 - bubbleW / 2;
+                bLeft = Math.max(12, Math.min(vw - bubbleW - 12, bLeft));
+                let bTop = placeBelow ? (rect.bottom + 16) : (rect.top - bH - 16);
+                bTop = Math.max(12, Math.min(vh - bH - 12, bTop));
+                bubbleEl.style.left = bLeft + 'px';
+                bubbleEl.style.top = bTop + 'px';
+                bubbleEl.classList.remove('arrow-top', 'arrow-bottom');
+                bubbleEl.classList.add(placeBelow ? 'arrow-top' : 'arrow-bottom');
+                const targetCenterX = rect.left + rect.width / 2;
+                let arrowLeft = targetCenterX - bLeft;
+                arrowLeft = Math.max(22, Math.min(bubbleW - 22, arrowLeft));
+                bubbleEl.style.setProperty('--arrow-left', arrowLeft + 'px');
+            }
+            function start(steps, guideKey) {
+                ensureDom();
+                currentSteps = steps; currentIndex = 0; currentGuideKey = guideKey || null;
+                overlayEl.classList.add('active');
+                showStep(0);
+            }
+            function stop() {
+                if (!overlayEl) return;
+                overlayEl.classList.remove('active');
+                highlightEl.classList.remove('show');
+                bubbleEl.classList.remove('show');
+                currentSteps = null; currentIndex = 0; currentTargetSelector = null; currentGuideKey = null;
+            }
+            function isActive() { return !!(overlayEl && overlayEl.classList.contains('active')); }
+            function markSeen() {
+                if (currentGuideKey) { try { localStorage.setItem('winzo_guide_seen_' + currentGuideKey, 'true'); } catch (_) {} }
+            }
+            function hasSeen(key) { try { return localStorage.getItem('winzo_guide_seen_' + key) === 'true'; } catch (_) { return false; } }
+            return { start, stop, isActive, hasSeen };
+        })();
+
+        function getDepositGuideSteps() {
+            return [
+                { target: '#depositPasteText', text: '1️⃣ የቴሌብር መልእክትዎን (SMS) እዚህ ይለጥፉ። የብር መጠኑና ማጣቀሻው በራስ-ሰር ይሞላል።' },
+                { target: '#extractFromTextBtn', text: '2️⃣ መረጃውን በራስ-ሰር ለማውጣት ይህን 🔍 Extract ቁልፍ ይጫኑ።' },
+                { target: '#depositAmount', text: '3️⃣ ያስገቡትን የብር መጠን እዚህ ያረጋግጡ ወይም በእጅ ያስገቡ።' },
+                { target: '#depositReference', text: '4️⃣ የግብይት ማጣቀሻ ቁጥር (Reference) እዚህ ይገኛል።' },
+                { target: '#depositImage', text: '5️⃣ የክፍያ ፎቶ (Screenshot) ካለዎት እዚህ ይላኩ።' },
+                { target: '#depositConfirm', text: '6️⃣ ሁሉንም አረጋግጠው Send ይጫኑ። አስተዳዳሪው ካጸደቀ በኋላ ብሩ ወደ ሒሳብዎ ይገባል።' }
+            ];
+        }
+        function getWithdrawGuideSteps() {
+            return [
+                { target: '#withdrawName', text: '1️⃣ ሙሉ ስምዎን እዚህ ያስገቡ (ለምሳሌ: አበበ ከበደ)።' },
+                { target: '#withdrawPhone', text: '2️⃣ የቴሌብር ስልክ ቁጥርዎን ያስገቡ (ለምሳሌ: 09xxxxxxxx)።' },
+                { target: '#withdrawAmount', text: '3️⃣ ወጪ ማድረግ የሚፈልጉትን የብር መጠን ያስገቡ።' },
+                { target: '#withdrawConfirm', text: '4️⃣ መረጃውን አረጋግጠው Send ይጫኑ። ጥያቄው ወደ አስተዳዳሪ ይላካል።' }
+            ];
+        }
+        function injectGuideHelpButton(modalId, stepsFn, guideKey) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            const content = modal.querySelector('.modal-content');
+            if (!content || content.querySelector('.guide-help-btn')) return;
+            if (getComputedStyle(content).position === 'static') content.style.position = 'relative';
+            const btn = document.createElement('button');
+            btn.type = 'button'; btn.className = 'guide-help-btn'; btn.textContent = '❓ እርዳታ';
+            btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); Guide.start(stepsFn(), guideKey); });
+            content.appendChild(btn);
+        }
+        function watchGuideModalClose(modalEl) {
+            if (!modalEl || modalEl._guideWatched) return;
+            modalEl._guideWatched = true;
+            new MutationObserver(() => {
+                if (!modalEl.classList.contains('active') && Guide.isActive()) Guide.stop();
+            }).observe(modalEl, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        // ============================================================
+        //  WINNING CARD
+        // ============================================================
+        function formatWinnerNames(winners) {
+            const list = Array.isArray(winners) ? winners.filter(Boolean).map(w => String(w).trim()).filter(Boolean) : [];
+            if (!list.length) return '😔 No Winner';
+            if (list.length === 1) return '🏆 ' + list[0];
+            if (list.length <= 3) return '🏆 ' + list.join(' · ');
+            return '🏆 ' + list.slice(0, 3).join(' · ') + `  +${list.length - 3} more`;
+        }
+        function clearCardFetchRetry() {
+            if (cardFetchRetryTimer) { clearTimeout(cardFetchRetryTimer); cardFetchRetryTimer = null; }
+            cardFetchRetryCount = 0;
+        }
+        function fetchLastResultFromFirebase(round) {
+            return fetchLastResultViaRest(round).then(data => {
+                if (data) return data;
+                if (!gameRef) return null;
+                return gameRef.child('lastResult').once('value').then(snap => {
+                    if (!snap.exists()) return null;
+                    const d = snap.val();
+                    if (!d || typeof d !== 'object') return null;
+                    if (Number(d.round) !== Number(round)) return null;
+                    const wn = Number(d.winningNumber);
+                    if (!isFinite(wn) || wn <= 0 || wn > 200) return null;
+                    if (!Array.isArray(d.winners)) d.winners = [];
+                    return d;
+                }).catch(() => null);
+            });
+        }
+        function setCardLoadingState() {
+            if (winningCardWinnersEl) { winningCardWinnersEl.textContent = '⏳ Fetching result…'; winningCardWinnersEl.classList.remove('no-winner'); }
+            const numEl = document.getElementById('winningNumberBig');
+            if (numEl) numEl.textContent = '--';
+            if (winningCardAmountEl) winningCardAmountEl.classList.remove('show');
+        }
+        function renderWinningCardBody(number, winners, winAmount) {
+            if (winningCardWinnersEl) {
+                const hasWinner = winners.filter(Boolean).length > 0;
+                winningCardWinnersEl.textContent = formatWinnerNames(winners);
+                winningCardWinnersEl.classList.toggle('no-winner', !hasWinner);
+            }
+            const numEl = document.getElementById('winningNumberBig');
+            if (numEl) {
+                numEl.textContent = String(number);
+                numEl.style.animation = 'none'; void numEl.offsetWidth;
+                numEl.style.animation = 'numberPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            }
+            if (winningCardAmountEl && winningCardAmountValueEl) {
+                const amt = Number(winAmount);
+                if (isFinite(amt) && amt > 0) {
+                    winningCardAmountValueEl.textContent = amt.toLocaleString() + ' Birr';
+                    winningCardAmountEl.classList.add('show');
+                    winningCardAmountEl.style.animation = 'none'; void winningCardAmountEl.offsetWidth;
+                    winningCardAmountEl.style.animation = 'amountPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                } else winningCardAmountEl.classList.remove('show');
+            }
+        }
+        const BALL_ANIM_LOW_END = (navigator.hardwareConcurrency || 4) <= 4
+            || (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 2)
+            || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        const ballAnimationPlayedRounds = new Set();
+        let ballAnimationPlaying = false;
+
+        function playBallAnimation(winners, winningNumber, round) {
+            return new Promise(resolve => {
+                const overlay = document.getElementById('ballAnimOverlay');
+                if (!overlay) { resolve(); return; }
+                const machine = overlay.querySelector('.ball-anim-machine');
+                const glass = document.getElementById('baGlass');
+                const ballBox = document.getElementById('baBalls');
+                const hole = document.getElementById('baHole');
+                const tray = document.getElementById('baTray');
+                const status = document.getElementById('baStatus');
+                if (!machine || !glass || !ballBox || !hole || !tray || !status) { resolve(); return; }
+                const ANIM = { mixMs: BALL_ANIM_LOW_END ? 900 : 1300, holeOpenMs: BALL_ANIM_LOW_END ? 300 : 420, dropMs: BALL_ANIM_LOW_END ? 440 : 560, gapBeforeWinner: 240, gapBetweenWinners: 200, finalHoldMs: 700 };
+                let resolved = false;
+                const timers = [];
+                const wait = ms => new Promise(r => { const t = setTimeout(r, ms); timers.push(t); });
+                const cleanup = () => { timers.forEach(t => clearTimeout(t)); timers.length = 0; };
+                const finish = () => {
+                    if (resolved) return;
+                    resolved = true; clearTimeout(safetyTimer); cleanup();
+                    overlay.classList.remove('active');
+                    machine.querySelectorAll('.ba-drop').forEach(el => el.remove());
+                    ballBox.innerHTML = '';
+                    resolve();
+                };
+                const safetyTimer = setTimeout(finish, 15000);
+                const players = engineState.players || {};
+                const allPicks = []; const playerNames = [];
+                Object.keys(players).forEach(name => {
+                    const p = players[name];
+                    if (!p || !p.name) return;
+                    if (p.round != null && Number(p.round) !== Number(round)) return;
+                    const picks = getPlayerPicks(p);
+                    if (!picks.length) return;
+                    picks.forEach(n => allPicks.push({ number: Number(n), owner: name }));
+                    playerNames.push(name);
+                });
+                if (!allPicks.length && engineState.allTakenNumbers && engineState.allTakenNumbers.size) {
+                    engineState.allTakenNumbers.forEach(n => allPicks.push({ number: Number(n), owner: null }));
+                }
+                if (!allPicks.length && !playerNames.length) { finish(); return; }
+                machine.querySelectorAll('.ba-drop').forEach(el => el.remove());
+                ballBox.innerHTML = ''; hole.classList.remove('open');
+                overlay.classList.add('active');
+                void overlay.offsetWidth;
+                const glassW = glass.clientWidth || 360;
+                const glassH = glass.clientHeight || 460;
+                const pool = [];
+                allPicks.forEach(p => pool.push({ kind: 'number', text: String(p.number), num: p.number, owner: p.owner }));
+                playerNames.forEach(n => pool.push({ kind: 'name', text: n, num: null, owner: n }));
+                let ballSize = Math.sqrt((glassW * glassH * 0.70) / Math.max(1, pool.length));
+                ballSize = Math.max(16, Math.min(56, ballSize));
+                const spacingX = ballSize * 0.86, spacingY = ballSize * 0.84;
+                const cols = Math.max(3, Math.floor((glassW - 8) / spacingX));
+                const floorY = glassH - 6;
+                const rowWidth = cols * spacingX;
+                const rowStartX = (glassW - rowWidth) / 2 + spacingX / 2;
+                const balls = [];
+                pool.forEach((item, i) => {
+                    const col = i % cols, row = Math.floor(i / cols);
+                    let x = rowStartX + col * spacingX + (Math.random() - 0.5) * spacingX * 0.30;
+                    let y = floorY - ballSize - row * spacingY + (Math.random() - 0.5) * spacingY * 0.18;
+                    x = Math.max(2, Math.min(glassW - ballSize - 2, x));
+                    y = Math.max(26, Math.min(glassH - ballSize - 2, y));
+                    const el = document.createElement('div');
+                    el.className = 'ba-ball ' + (item.kind === 'number' ? 'ba-white' : 'ba-yellow') + ' ba-bounce';
+                    el.textContent = item.text;
+                    el.style.width = ballSize + 'px'; el.style.height = ballSize + 'px';
+                    const fs = item.kind === 'number' ? ballSize * 0.38 : Math.max(6, Math.min(ballSize * 0.30, (ballSize * 1.9) / Math.max(4, item.text.length)));
+                    el.style.fontSize = fs + 'px';
+                    el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px';
+                    el.style.zIndex = String(1 + Math.floor(Math.random() * 4));
+                    el.style.setProperty('--delay', (Math.random() * 1.5).toFixed(2) + 's');
+                    el.style.setProperty('--dur', (1.1 + Math.random() * 0.9).toFixed(2) + 's');
+                    el.style.setProperty('--dx', ((Math.random() - 0.5) * 4).toFixed(1) + 'px');
+                    el.style.setProperty('--jump', (-(7 + Math.random() * 12)).toFixed(0) + 'px');
+                    ballBox.appendChild(el);
+                    balls.push({ el, kind: item.kind, num: item.num, owner: item.owner, text: item.text });
+                });
+                const machineRect = machine.getBoundingClientRect();
+                const trayRect = tray.getBoundingClientRect();
+                const holeRect = hole.getBoundingClientRect();
+                const holeX = holeRect.left - machineRect.left + holeRect.width / 2;
+                const holeY = holeRect.top - machineRect.top + holeRect.height / 2;
+                const winnerList = Array.isArray(winners) ? winners.filter(Boolean) : [];
+                const trayCount = 1 + winnerList.length;
+                const trayGap = 12;
+                const trayBallSize = Math.min(ballSize, Math.max(24, (trayRect.width - 24 - (trayCount - 1) * trayGap) / trayCount));
+                const trayTotalW = trayCount * trayBallSize + (trayCount - 1) * trayGap;
+                const trayStartX = (trayRect.left - machineRect.left) + (trayRect.width - trayTotalW) / 2 + trayBallSize / 2;
+                const trayCenterY = trayRect.top - machineRect.top + trayRect.height / 2;
+                const traySlotX = i => trayStartX + i * (trayBallSize + trayGap);
+                async function dropOneOut(ball, slotIndex) {
+                    if (ball.el && ball.el.parentNode) ball.el.parentNode.removeChild(ball.el);
+                    const el = document.createElement('div');
+                    el.className = 'ba-ball ba-drop ' + (ball.kind === 'number' ? 'ba-white' : 'ba-yellow');
+                    el.textContent = ball.text;
+                    el.style.width = trayBallSize + 'px'; el.style.height = trayBallSize + 'px';
+                    el.style.fontSize = (ball.kind === 'number' ? trayBallSize * 0.38 : Math.max(7, Math.min(trayBallSize * 0.30, (trayBallSize * 1.9) / Math.max(4, ball.text.length)))) + 'px';
+                    el.style.left = '0px'; el.style.top = '0px';
+                    el.style.transform = `translate3d(${(holeX - trayBallSize/2).toFixed(1)}px, ${(holeY - trayBallSize/2).toFixed(1)}px, 0) rotate(0deg)`;
+                    machine.appendChild(el);
+                    void el.offsetWidth;
+                    el.style.transition = `transform ${(ANIM.dropMs / 1000).toFixed(2)}s cubic-bezier(.42,.03,.84,.46)`;
+                    el.style.transform = `translate3d(${(traySlotX(slotIndex) - trayBallSize/2).toFixed(1)}px, ${(trayCenterY - trayBallSize/2).toFixed(1)}px, 0) rotate(${(180 + Math.random() * 180).toFixed(0)}deg)`;
+                    await wait(ANIM.dropMs + 60);
+                    el.style.transition = '';
+                    return el;
+                }
+                (async () => {
+                    status.textContent = '🎲 Mixing the balls…';
+                    await wait(ANIM.mixMs); if (resolved) return;
+                    hole.classList.add('open');
+                    status.textContent = '🎯 Opening the chute…';
+                    await wait(ANIM.holeOpenMs); if (resolved) return;
+                    const numberBall = balls.find(b => b.kind === 'number' && Number(b.num) === Number(winningNumber)) || balls.find(b => b.kind === 'number');
+                    if (numberBall) {
+                        status.textContent = '🔢 Number ' + numberBall.text + ' is coming out…';
+                        const numEl = await dropOneOut(numberBall, 0);
+                        numEl.classList.add('ba-winner-glow');
+                    }
+                    await wait(ANIM.gapBeforeWinner); if (resolved) return;
+                    if (winnerList.length) {
+                        for (let i = 0; i < winnerList.length; i++) {
+                            const name = winnerList[i];
+                            const nameBall = balls.find(b => b.kind === 'name' && b.owner === name);
+                            if (!nameBall) continue;
+                            status.textContent = '🏆 ' + name + ' wins!';
+                            const el = await dropOneOut(nameBall, i + 1);
+                            el.classList.add('ba-winner-glow');
+                            await wait(ANIM.gapBetweenWinners); if (resolved) return;
+                        }
+                        status.textContent = '🏆 ' + winnerList.join(' · ');
+                    } else status.textContent = '😔 No winner this round.';
+                    await wait(ANIM.finalHoldMs);
+                    finish();
+                })().catch(() => finish());
+            });
+        }
+
+        function displayWinningNumberCard(round, number, winners, winAmount) {
+            const r = Number(round), n = Number(number);
+            if (!isFinite(r) || r <= 0 || !isFinite(n) || n <= 0 || n > 200) return;
+            if (!Array.isArray(winners)) return;
+            if (ballAnimationPlaying) {
+                const started = window._ballAnimStartedAt || 0;
+                if (!started || (Date.now() - started) > 12000) {
+                    ballAnimationPlaying = false; window._ballAnimStartedAt = null;
+                    const ov = document.getElementById('ballAnimOverlay');
+                    if (ov) ov.classList.remove('active');
+                }
+            }
+            const animKey = currentRoom + '_' + r;
+            if (ballAnimationPlayedRounds.has(animKey) || ballAnimationPlaying) {
+                renderWinningCardBody(n, winners, winAmount);
+                if (winnersModal) winnersModal.classList.add('active');
+                if (!isResultsCountdownRunning) startResultsCountdown();
+                return;
+            }
+            ballAnimationPlayedRounds.add(animKey);
+            ballAnimationPlaying = true;
+            window._ballAnimStartedAt = Date.now();
+            if (timerDisplay) timerDisplay.textContent = '5';
+            playBallAnimation(winners, n, r).then(() => {
+                ballAnimationPlaying = false; window._ballAnimStartedAt = null;
+                if (engineState.gamePhase !== 'results' || Number(engineState.roundNumber) !== r) return;
+                renderWinningCardBody(n, winners, winAmount);
+                if (winnersModal) winnersModal.classList.add('active');
+                if (winners.filter(Boolean).length) startFireworks();
+                if (!isResultsCountdownRunning) startResultsCountdown();
+            }).catch(() => { ballAnimationPlaying = false; window._ballAnimStartedAt = null; });
+        }
+
+        function resetWinningNumberCard() {
+            displayedCardRound = null; clearCardFetchRetry();
+            const numEl = document.getElementById('winningNumberBig');
+            if (numEl) numEl.textContent = '--';
+            if (winningCardWinnersEl) { winningCardWinnersEl.textContent = 'Waiting for result…'; winningCardWinnersEl.classList.remove('no-winner'); }
+            if (winningCardAmountEl) winningCardAmountEl.classList.remove('show');
+        }
+        function tryFetchAndShowCard(round) {
+            if (engineState.gamePhase !== 'results' || Number(engineState.roundNumber) !== Number(round)) { clearCardFetchRetry(); return; }
+            fetchLastResultFromFirebase(round).then(data => {
+                if (engineState.gamePhase !== 'results' || Number(engineState.roundNumber) !== Number(round)) { clearCardFetchRetry(); return; }
+                if (!data) {
+                    if (cardFetchRetryCount < 8) {
+                        cardFetchRetryCount++;
+                        cardFetchRetryTimer = setTimeout(() => { cardFetchRetryTimer = null; tryFetchAndShowCard(round); }, 300 + cardFetchRetryCount * 250);
+                    } else clearCardFetchRetry();
+                    return;
+                }
+                lastResultData = data;
+                displayedCardRound = round;
+                displayWinningNumberCard(round, Number(data.winningNumber), Array.isArray(data.winners) ? data.winners : [], Number(data.winAmount) || 0);
+                clearCardFetchRetry();
+            });
+        }
+        function applyCardState() {
+            const phase = engineState.gamePhase;
+            const round = Number(engineState.roundNumber);
+            if (phase !== 'results') {
+                if (winnersModal) winnersModal.classList.remove('active');
+                displayedCardRound = null; clearCardFetchRetry();
+                if (ballAnimationPlaying) {
+                    ballAnimationPlaying = false; window._ballAnimStartedAt = null;
+                    const ov = document.getElementById('ballAnimOverlay');
+                    if (ov) ov.classList.remove('active');
+                }
+                return;
+            }
+            if (!isFinite(round) || round <= 0) return;
+            if (displayedCardRound === round) return;
+            if (lastResultData && Number(lastResultData.round) === round && isFinite(Number(lastResultData.winningNumber)) && Number(lastResultData.winningNumber) > 0 && Number(lastResultData.winningNumber) <= 200) {
+                displayedCardRound = round;
+                displayWinningNumberCard(round, Number(lastResultData.winningNumber), Array.isArray(lastResultData.winners) ? lastResultData.winners : [], Number(lastResultData.winAmount) || 0);
+                clearCardFetchRetry();
+                return;
+            }
+            if (lastResultData && Number(lastResultData.round) === round) {
+                setCardLoadingState();
+                displayWinningNumberCard(round, Number(lastResultData.winningNumber), Array.isArray(lastResultData.winners) ? lastResultData.winners : [], Number(lastResultData.winAmount) || 0);
+                return;
+            }
+            setCardLoadingState();
+        }
+        function handleAuthoritativeResult(r) {
+            if (!r || r.round == null || r.winningNumber == null) return;
+            const incoming = Number(r.round);
+            if (!isFinite(incoming) || incoming <= 0) return;
+            const current = Number(engineState.roundNumber);
+            if (incoming > current || incoming < current - 1) return;
+            lastResultData = r;
+            if (incoming === current) applyCardState();
+        }
+        function attachLastResultListener(ref) {
+            if (lastResultListenerRef) { try { lastResultListenerRef.off(); } catch (e) {} lastResultListenerRef = null; }
+            if (!ref) return;
+            lastResultListenerRef = ref.child('lastResult');
+            lastResultListenerRef.on('value', snap => {
+                if (snap.exists()) handleAuthoritativeResult(snap.val());
+                else { lastResultData = null; clearCardFetchRetry(); }
+            });
+        }
+        function detachLastResultListener() {
+            if (lastResultListenerRef) { try { lastResultListenerRef.off(); } catch (e) {} lastResultListenerRef = null; }
+        }
+
+        // ============================================================
+        //  WALLET (READ ONLY)
+        // ============================================================
+        function syncWalletFromFirebase() {
+            if (!currentUser || !database) return;
+            if (userWalletRef) { userWalletRef.off(); userWalletRef = null; }
+            const userRef = database.ref('users/' + currentUser);
+            userWalletRef = userRef;
+            userRef.on('value', snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    walletData.main = data.mainWallet || 0;
+                    walletData.play = data.playWallet || 0;
+                    walletData.pending = data.pendingWithdrawal || 0;
+                    let refTotal = 0;
+                    if (data.referralWinPayouts && typeof data.referralWinPayouts === 'object') {
+                        Object.keys(data.referralWinPayouts).forEach(k => {
+                            const p = data.referralWinPayouts[k];
+                            if (p && typeof p === 'object' && p.amount != null) refTotal += Number(p.amount) || 0;
+                        });
+                    }
+                    if (refTotal === 0 && data.referralEarnings) refTotal = Number(data.referralEarnings) || 0;
+                    walletData.refEarn = refTotal;
+                    updateWalletUI(); updateWelcomeUI();
+                }
+            }, err => window.WINZO_RECORD_ERROR('WALLET-LISTEN', err));
+        }
+        function checkPendingTransactionStatus() {
+            if (!currentUser || !database) return;
+            if (pendingTxListenerRef && pendingTxListenerHandler) {
+                try { pendingTxListenerRef.off('child_changed', pendingTxListenerHandler); } catch (e) {}
+            }
+            pendingTxListenerRef = null; pendingTxListenerHandler = null;
+            const query = database.ref('transactions').orderByChild('username').equalTo(currentUser);
+            pendingTxListenerHandler = snapshot => { if (snapshot.val()) syncWalletFromFirebase(); };
+            query.on('child_changed', pendingTxListenerHandler, err => window.WINZO_RECORD_ERROR('TX-LISTEN', err));
+            pendingTxListenerRef = query;
+        }
+        function updateWalletUI() {
+            if (!currentUser) return;
+            if (mainWalletEl) mainWalletEl.textContent = walletData.main;
+            if (playWalletEl) playWalletEl.textContent = walletData.play;
+            if (refWalletEl) refWalletEl.textContent = walletData.refEarn || 0;
+            if (walletUsername) walletUsername.textContent = currentUser;
+            if (pendingItem && pendingAmount) {
+                if (walletData.pending > 0) { pendingItem.style.display = 'inline-flex'; pendingAmount.textContent = walletData.pending; }
+                else pendingItem.style.display = 'none';
+            }
+            if (withdrawModal && withdrawModal.classList.contains('active') && withdrawAvailableBalance) {
+                withdrawAvailableBalance.textContent = walletData.main - walletData.pending;
+            }
+        }
+        function updateWelcomeUI() { if (currentUser && welcomeBalance) welcomeBalance.textContent = walletData.play; }
+
+        // ============================================================
+        //  NOTIFICATIONS (READ ONLY)
+        // ============================================================
+        let notificationRef = null;
+        let notificationSeenKeys = new Set();
+        let txPopupQueue = [], txPopupActive = false, currentPopupNotificationKey = null;
+        let broadcastPopupQueue = [], broadcastPopupActive = false, currentBroadcastNotificationKey = null;
+
+        function listenNotifications(username) {
+            if (!database || !username) return;
+            if (notificationRef) { try { notificationRef.off(); } catch (e) {} notificationRef = null; }
+            notificationSeenKeys.clear();
+            notificationRef = database.ref('notifications/' + username);
+            notificationRef.on('child_added', snapshot => handleIncomingNotification(snapshot), err => window.WINZO_RECORD_ERROR('NOTIF-LISTEN', err));
+            notificationRef.once('value').then(snap => {
+                const all = snap.val() || {};
+                Object.keys(all).forEach(key => {
+                    const data = all[key];
+                    if (!data) return;
+                    const isSticky = (data.type === 'sticky_broadcast') || (data.sticky === true);
+                    if (data.read === true && !isSticky) return;
+                    handleIncomingNotification({ key, val: () => data, ref: database.ref('notifications/' + username + '/' + key) });
+                });
+            }).catch(() => {});
+        }
+        function handleIncomingNotification(snapshot) {
+            const key = snapshot.key;
+            const data = snapshot.val();
+            if (!data) return;
+            const isSticky = (data.type === 'sticky_broadcast') || (data.sticky === true);
+            if (data.read === true && !isSticky) return;
+            if (notificationSeenKeys.has(key) && !isSticky) return;
+            notificationSeenKeys.add(key);
+            if (isSticky) { showStickyOverlay(data.message || '', data.broadcastId || key, Number(data.timestamp) || 0); return; }
+            if (data.type === 'broadcast') { enqueueBroadcastPopup(data, key); return; }
+            let status = data.status;
+            let isTxResult = false;
+            if (data.type === 'transaction_result') isTxResult = true;
+            else if (status === 'approved' || status === 'rejected') isTxResult = true;
+            else if (data.message && /approv|reject/i.test(data.message)) {
+                isTxResult = true;
+                status = /reject/i.test(data.message) ? 'rejected' : 'approved';
+            }
+            if (isTxResult) enqueueTransactionPopup(Object.assign({}, data, { status: status || 'approved' }), key);
+            else if (data.message) {
+                try { snapshot.ref.update({ read: true }); } catch (e) {}
+                showToast(data.message, 'info');
+            }
+        }
+        function enqueueBroadcastPopup(data, key) {
+            broadcastPopupQueue.push({ data, key });
+            if (!broadcastPopupActive) showNextBroadcastPopup();
+        }
+        function showNextBroadcastPopup() {
+            if (!broadcastModal || !broadcastPopupQueue.length) { broadcastPopupActive = false; return; }
+            broadcastPopupActive = true;
+            const item = broadcastPopupQueue.shift();
+            currentBroadcastNotificationKey = item.key;
+            if (broadcastTitleEl) broadcastTitleEl.textContent = 'Message from Winzo';
+            if (broadcastMsgEl) broadcastMsgEl.textContent = item.data.message || '';
+            try { playTone(660, 0.22, 'sine', 0.20); } catch (e) {}
+            broadcastModal.classList.add('active');
+        }
+        if (broadcastOkBtn) {
+            broadcastOkBtn.onclick = function () {
+                if (broadcastModal) broadcastModal.classList.remove('active');
+                if (currentBroadcastNotificationKey && currentUser && database) {
+                    try { database.ref('notifications/' + currentUser + '/' + currentBroadcastNotificationKey).update({ read: true }).catch(() => {}); } catch (e) {}
+                    currentBroadcastNotificationKey = null;
+                }
+                broadcastPopupActive = false;
+                setTimeout(showNextBroadcastPopup, 260);
+            };
+        }
+        function showStickyOverlay(message, id, ts) {
+            if (activeStickyBroadcast && activeStickyBroadcast.id === id && activeStickyBroadcast.message === message) return;
+            activeStickyBroadcast = { id, message, timestamp: ts || Date.now() };
+            gamePausedBySticky = true;
+            if (stickyMsgEl) stickyMsgEl.textContent = message || 'Service update in progress…';
+            if (stickyOverlay) stickyOverlay.classList.add('active');
+            stopTimer(); stopResultsCountdown();
+            try { stopFireworks(); } catch (e) {}
+            document.querySelectorAll('.num-btn').forEach(btn => btn.disabled = true);
+            updateStatus('⏸ Game paused by admin.');
+        }
+        function hideStickyOverlay() {
+            if (!gamePausedBySticky && !activeStickyBroadcast) {
+                if (stickyOverlay) stickyOverlay.classList.remove('active');
+                return;
+            }
+            activeStickyBroadcast = null; gamePausedBySticky = false;
+            if (stickyOverlay) stickyOverlay.classList.remove('active');
+            updateStatus('▶️ Game resumed.');
+            try { if (engineState.gamePhase === 'selection' && !isTimerRunning) startTimer(); } catch (e) {}
+            renderNumberPicker();
+        }
+        function listenStickyBroadcast() {
+            if (!database) return;
+            if (stickyBroadcastRef && stickyBroadcastHandler) { try { stickyBroadcastRef.off('value', stickyBroadcastHandler); } catch (e) {} }
+            stickyBroadcastRef = database.ref('sticky_broadcast');
+            stickyBroadcastHandler = snap => {
+                const data = snap.val();
+                if (data && data.message) showStickyOverlay(data.message || '', data.id || ('global_' + (data.timestamp || 0)), Number(data.timestamp) || 0);
+                else hideStickyOverlay();
+            };
+            stickyBroadcastRef.on('value', stickyBroadcastHandler, err => window.WINZO_RECORD_ERROR('STICKY-LISTEN', err));
+        }
+        function stopStickyBroadcastListener() {
+            if (stickyBroadcastRef && stickyBroadcastHandler) { try { stickyBroadcastRef.off('value', stickyBroadcastHandler); } catch (e) {} }
+            stickyBroadcastRef = null; stickyBroadcastHandler = null;
+            hideStickyOverlay();
+        }
+        function enqueueTransactionPopup(data, key) {
+            txPopupQueue.push({ data, key });
+            if (!txPopupActive) showNextTransactionPopup();
+        }
+        function showNextTransactionPopup() {
+            const modal = document.getElementById('transactionResultModal');
+            if (!modal || !txPopupQueue.length) { txPopupActive = false; return; }
+            txPopupActive = true;
+            const item = txPopupQueue.shift();
+            currentPopupNotificationKey = item.key;
+            const isApproved = item.data.status === 'approved';
+            modal.classList.remove('approved', 'rejected', 'active');
+            modal.classList.add(isApproved ? 'approved' : 'rejected');
+            const icon = document.getElementById('txResultIcon');
+            const title = document.getElementById('txResultTitle');
+            const msg = document.getElementById('txResultMessage');
+            if (icon) icon.textContent = isApproved ? '✅' : '❌';
+            if (title) title.textContent = isApproved ? 'Request Approved' : 'Request Rejected';
+            if (msg) msg.textContent = isApproved ? 'Your request is approved' : ((item.data.reason || '').trim() || 'Your request was rejected by admin.');
+            try { playTone(isApproved ? 880 : 330, 0.28, 'sine', 0.22); } catch (e) {}
+            void modal.offsetWidth; modal.classList.add('active');
+        }
+        (function bindTxResultOk(){
+            const btn = document.getElementById('txResultOkBtn');
+            if (btn) btn.onclick = function() {
+                const modal = document.getElementById('transactionResultModal');
+                if (modal) modal.classList.remove('active');
+                if (currentPopupNotificationKey && currentUser && database) {
+                    try { database.ref('notifications/' + currentUser + '/' + currentPopupNotificationKey).update({ read: true }).catch(() => {}); } catch (e) {}
+                    currentPopupNotificationKey = null;
+                }
+                txPopupActive = false;
+                setTimeout(showNextTransactionPopup, 260);
+            };
+        })();
+        function clearTransactionPopups() {
+            txPopupQueue = []; txPopupActive = false; currentPopupNotificationKey = null;
+            const modal = document.getElementById('transactionResultModal');
+            if (modal) modal.classList.remove('active');
+            broadcastPopupQueue = []; broadcastPopupActive = false; currentBroadcastNotificationKey = null;
+            if (broadcastModal) broadcastModal.classList.remove('active');
+        }
+        function stopNotificationListener() {
+            if (notificationRef) { try { notificationRef.off(); } catch (e) {} notificationRef = null; }
+        }
+        function showToast(message, type = 'info') {
+            if (!welcomeToast) return;
+            const iconMap = { 'info': 'ℹ️', 'success': '✅', 'warning': '⚠️', 'error': '❌' };
+            const iconEl = welcomeToast.querySelector('.icon');
+            const titleEl = welcomeToast.querySelector('h3');
+            const msgEl = welcomeToast.querySelector('p');
+            if (iconEl) iconEl.textContent = iconMap[type] || 'ℹ️';
+            if (titleEl) titleEl.textContent = type === 'info' ? 'Notification' : 'Alert';
+            if (msgEl) msgEl.textContent = String(message).replace(/<[^>]*>/g, '');
+            welcomeToast.classList.add('active');
+            clearTimeout(welcomeToast._hideTimer);
+            welcomeToast._hideTimer = setTimeout(() => welcomeToast.classList.remove('active'), 5000);
+        }
+
+        // ============================================================
+        //  DEPOSIT / WITHDRAW
+        // ============================================================
+        function openDepositModal() {
+            if (depositPlayBalance) depositPlayBalance.textContent = walletData.play;
+            if (depositError) depositError.textContent = '';
+            if (depositAmount) depositAmount.value = '';
+            if (depositReference) depositReference.value = '';
+            if (depositImage) depositImage.value = '';
+            if (ocrStatus) ocrStatus.textContent = '';
+            if (depositPasteText) depositPasteText.value = '';
+            if (textExtractStatus) { textExtractStatus.textContent = ''; textExtractStatus.style.color = '#ffd866'; }
+            if (depositModal) depositModal.classList.add('active');
+            closeMoreDropdown();
+            if (!Guide.hasSeen('deposit')) setTimeout(() => Guide.start(getDepositGuideSteps(), 'deposit'), 380);
+        }
+        function depositToPlay(amount, reference, imageFile) {
+            if (!currentUser) return false;
+            if (amount <= 0) { if (depositError) depositError.textContent = 'Please enter a valid amount.'; return false; }
+            if (!reference && !imageFile) { if (depositError) depositError.textContent = 'Please provide a reference number or upload a screenshot.'; return false; }
+            if (depositError) depositError.textContent = '';
+            if (depositModal) depositModal.classList.remove('active');
+            return requestTransaction('deposit', amount, reference || '', imageFile || null);
+        }
+        function withdrawRequest(amount, name, phone) {
+            if (!currentUser || !database) return false;
+            amount = Number(amount);
+            name = safeProductionName(name);
+            phone = safeProductionName(phone);
+            if (!Number.isFinite(amount) || amount <= 0 || !name || !phone) {
+                if (withdrawError) withdrawError.textContent = 'Please fill in all fields.';
+                return false;
+            }
+            if (Number(walletData.main || 0) < amount) {
+                if (withdrawError) withdrawError.textContent = 'Insufficient main balance.';
+                return false;
+            }
+            if (withdrawError) withdrawError.textContent = '';
+            if (withdrawModal) withdrawModal.classList.remove('active');
+            return requestTransaction('withdraw', amount, '', null, { name, phone });
+        }
+        function transferToPlay(amount) {
+            if (!currentUser) return false;
+            amount = Number(amount);
+            if (!amount || amount <= 0) { alert('Enter a valid amount.'); return false; }
+            if (Number(walletData.main) - Number(walletData.pending) < amount) {
+                alert('Insufficient available main balance.');
+                return false;
+            }
+            if (client) client.transfer(amount);
+            return true;
+        }
+
+        // ---- OCR ----
+        let ocrBusy = false; let lastOCRResult = { reference: null, amount: null };
+        async function extractReferenceFromImage(file) {
+            if (!file) { if (ocrStatus) ocrStatus.textContent = '⚠️ No image selected.'; return null; }
+            if (ocrBusy) return lastOCRResult;
+            ocrBusy = true;
+            if (ocrProgressModal) ocrProgressModal.classList.add('active');
+            if (ocrSpinner) ocrSpinner.style.display = 'block';
+            if (ocrDoneIcon) ocrDoneIcon.classList.remove('show');
+            if (ocrProgressStatus) ocrProgressStatus.textContent = 'Preparing image...';
+            if (ocrProgressSub) ocrProgressSub.textContent = 'Running OCR passes.';
+            const objectUrls = [];
+            try {
+                const imageUrl = URL.createObjectURL(file); objectUrls.push(imageUrl);
+                const img = await new Promise((resolve, reject) => { const im = new Image(); im.onload = () => resolve(im); im.onerror = reject; im.src = imageUrl; });
+                const scale = 2;
+                const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+                const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                const ictx = c.getContext('2d', { willReadFrequently: true });
+                ictx.drawImage(img, 0, 0, w, h);
+                const result = await Tesseract.recognize(c.toDataURL('image/png'), 'eng', { logger: m => { if (m.status === 'recognizing text' && ocrProgressSub) ocrProgressSub.textContent = `OCR: ${Math.round(m.progress * 100)}%`; } });
+                const text = result.data.text || '';
+                const seen = new Set(); const refCandidates = [];
+                const tokens = text.replace(/[\u2010-\u2015]/g, '-').replace(/[\r\n]+/g, ' ').match(/[A-Z0-9]{1,24}/gi) || [];
+                tokens.forEach(t => { let v = t.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v.length === 10 && /[A-Z]/.test(v) && /\d/.test(v) && !seen.has(v)) { seen.add(v); refCandidates.push(v); } });
+                for (let i = 0; i < tokens.length; i++) {
+                    let joined = '';
+                    for (let j = i; j < Math.min(tokens.length, i + 5); j++) {
+                        joined += tokens[j];
+                        if (joined.length > 10) break;
+                        if (joined.length === 10) { let v = joined.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (/[A-Z]/.test(v) && /\d/.test(v) && !seen.has(v)) { seen.add(v); refCandidates.push(v); } }
+                    }
+                }
+                let amount = null;
+                for (const line of text.split('\n')) {
+                    if (/ETB|Birr/i.test(line)) {
+                        const m = line.match(/-?\s*([\d,]+\.?\d*)/);
+                        if (m) { const parsed = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(parsed) && parsed > 0) amount = parsed; }
+                        break;
+                    }
+                }
+                if (ocrSpinner) ocrSpinner.style.display = 'none';
+                if (ocrDoneIcon) ocrDoneIcon.classList.add('show');
+                const resultObj = { reference: refCandidates.length ? refCandidates[0] : null, amount };
+                if (ocrProgressStatus) ocrProgressStatus.textContent = resultObj.reference ? '✅ Reference found!' : '⚠️ Reference not found.';
+                if (ocrProgressSub) ocrProgressSub.textContent = `Ref: ${resultObj.reference || '—'} Amount: ${resultObj.amount || '—'}`;
+                setTimeout(() => { if (ocrProgressModal) ocrProgressModal.classList.remove('active'); }, 1500);
+                lastOCRResult = resultObj; ocrBusy = false;
+                return resultObj;
+            } catch (e) {
+                if (ocrSpinner) ocrSpinner.style.display = 'none';
+                if (ocrDoneIcon) ocrDoneIcon.classList.add('show');
+                if (ocrProgressStatus) ocrProgressStatus.textContent = '❌ OCR failed.';
+                setTimeout(() => { if (ocrProgressModal) ocrProgressModal.classList.remove('active'); }, 1500);
+                lastOCRResult = { reference: null, amount: null }; ocrBusy = false;
+                return lastOCRResult;
+            } finally { objectUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch (_) {} }); }
+        }
+        if (depositImage) {
+            depositImage.addEventListener('change', async function() {
+                const file = this.files[0];
+                if (!file) { if (ocrStatus) ocrStatus.textContent = ''; return; }
+                const result = await extractReferenceFromImage(file);
+                if (result) {
+                    if (result.reference && depositReference) depositReference.value = result.reference;
+                    if (result.amount && depositAmount) depositAmount.value = result.amount;
+                    if (ocrStatus) ocrStatus.textContent = '✅ Extracted data.';
+                } else if (ocrStatus) ocrStatus.textContent = '⚠️ No data extracted.';
+            });
+        }
+        if (extractRefBtn) {
+            extractRefBtn.onclick = async function() {
+                const file = depositImage ? depositImage.files[0] : null;
+                if (!file) { if (ocrStatus) ocrStatus.textContent = '⚠️ Please select an image first.'; return; }
+                const result = await extractReferenceFromImage(file);
+                if (result) {
+                    if (result.reference && depositReference) depositReference.value = result.reference;
+                    if (result.amount && depositAmount) depositAmount.value = result.amount;
+                    if (ocrStatus) ocrStatus.textContent = '✅ Extracted data.';
+                } else if (ocrStatus) ocrStatus.textContent = '⚠️ No data extracted.';
+            };
+        }
+
+        const depositPasteText = $('depositPasteText');
+        const extractFromTextBtn = $('extractFromTextBtn');
+        const textExtractStatus = $('textExtractStatus');
+
+        function extractDataFromText(text) {
+            const result = { reference: null, amount: null };
+            if (!text || typeof text !== 'string') return result;
+            const raw = text.replace(/\u00A0/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/[\u2010-\u2015]/g, '-');
+            const urlMatch = raw.match(/receipt\/([A-Za-z0-9]{6,24})/i);
+            if (urlMatch && urlMatch[1]) result.reference = urlMatch[1].toUpperCase();
+            if (!result.reference) {
+                const tokens = raw.match(/[A-Z0-9]{8,24}/gi) || [];
+                for (const t of tokens) {
+                    const v = t.toUpperCase();
+                    if (v.length < 8 || v.length > 24 || !/[A-Z]/.test(v) || !/\d/.test(v) || /^\d+$/.test(v)) continue;
+                    if (/^(ETB|VAT|SMS|HTTP|HTTPS|WWW)$/.test(v)) continue;
+                    result.reference = v;
+                    break;
+                }
+            }
+            const am = raw.match(/(\d+(?:[,\s]\d{3})*(?:\.\d{1,2})?)\s*(?:ብር|Birr|ETB|Br\b)/i);
+            if (am && am[1]) { const n = parseFloat(String(am[1]).replace(/[,\s]/g, '')); if (!isNaN(n) && n > 0) result.amount = n; }
+            if (result.amount == null) {
+                const am2 = raw.match(/(?:ብር|Birr|ETB|Br)\s*(\d+(?:[,\s]\d{3})*(?:\.\d{1,2})?)/i);
+                if (am2 && am2[1]) { const n = parseFloat(String(am2[1]).replace(/[,\s]/g, '')); if (!isNaN(n) && n > 0) result.amount = n; }
+            }
+            return result;
+        }
+        function applyExtractedDataToDepositForm(extracted) {
+            if (!extracted) return false;
+            const statusEl2 = document.getElementById('textExtractStatus');
+            let any = false;
+            if (extracted.amount != null && depositAmount) { depositAmount.value = extracted.amount; any = true; }
+            if (extracted.reference && depositReference) { depositReference.value = extracted.reference; any = true; }
+            if (any) {
+                if (depositError) depositError.textContent = '';
+                if (statusEl2) { statusEl2.textContent = `✅ Extracted · Amount: ${extracted.amount ?? '—'} · Ref: ${extracted.reference || '—'}`; statusEl2.style.color = '#8affb0'; }
+            } else if (statusEl2) { statusEl2.textContent = '⚠️ Could not detect. Type manually.'; statusEl2.style.color = '#ffd866'; }
+            return any;
+        }
+        if (depositPasteText) {
+            depositPasteText.addEventListener('paste', function() {
+                setTimeout(() => {
+                    const text = depositPasteText.value;
+                    if (text && text.trim()) applyExtractedDataToDepositForm(extractDataFromText(text));
+                }, 50);
+            });
+        }
+        if (extractFromTextBtn) {
+            extractFromTextBtn.onclick = function() {
+                const text = depositPasteText ? depositPasteText.value : '';
+                if (!text || !text.trim()) { if (textExtractStatus) { textExtractStatus.textContent = '⚠️ Paste the SMS first.'; textExtractStatus.style.color = '#ffd866'; } return; }
+                applyExtractedDataToDepositForm(extractDataFromText(text));
+            };
+        }
+
+        // ============================================================
+        //  SCREEN SWITCHING
+        // ============================================================
+        function showAuthScreen() {
+            if (authScreen) authScreen.style.display = 'flex';
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            if (gameScreen) gameScreen.style.display = 'none';
+            if (authError) authError.textContent = '';
+            setConnectionStatus(firebaseAvailable, firebaseAvailable ? '🌐 Connected' : '📡 Offline');
+            DB.setSavedBet(null);
+            const saved = DB.getSavedCredentials();
+            if (saved?.username && authUsername) authUsername.value = saved.username;
+            if (userWalletRef) { userWalletRef.off(); userWalletRef = null; }
+            if (pendingTxListenerRef && pendingTxListenerHandler) {
+                try { pendingTxListenerRef.off('child_changed', pendingTxListenerHandler); } catch (e) {}
+                pendingTxListenerRef = null; pendingTxListenerHandler = null;
+            }
+            stopNotificationListener(); stopStickyBroadcastListener(); stopResilienceEngine();
+            attemptTelegramDetection();
+        }
+        function showWelcomeScreen() {
+            if (authScreen) authScreen.style.display = 'none';
+            if (welcomeScreen) welcomeScreen.style.display = 'flex';
+            if (gameScreen) gameScreen.style.display = 'none';
+            updateWelcomeUI();
+            stopTimer(); stopResultsCountdown();
+            stopResilienceEngine();
+            syncWalletFromFirebase();
+            checkPendingTransactionStatus();
+            enableNetworkListener();
+            if (currentUser) { listenNotifications(currentUser); listenStickyBroadcast(); }
+            if (!DB.getToastShown()) {
+                if (welcomeToast) welcomeToast.classList.add('active');
+                DB.setToastShown();
+                setTimeout(() => { if (welcomeToast) welcomeToast.classList.remove('active'); }, 5000);
+            }
+        }
+        function showGameScreen() {
+            if (authScreen) authScreen.style.display = 'none';
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            if (gameScreen) gameScreen.style.display = 'flex';
+            if (modeLabel) modeLabel.textContent = currentBet + ' Birr';
+            if (betDisplay) betDisplay.textContent = currentBet;
+            updateWalletUI(); updatePickStatus(); updateTotalBetDisplay();
+            DB.setSavedBet(currentBet);
+            enableNetworkListener();
+            requestAnimationFrame(() => renderNumberPicker(true));
+        }
+
+        // ============================================================
+        //  LOGIN FLOW
+        // ============================================================
+        function resolveLoginUsername() {
+            const username = authUsername ? authUsername.value.trim() : '';
+            if (!username) { if (authError) authError.textContent = 'Please enter your username.'; return null; }
+            if (telegramDetectedUsername && username !== telegramDetectedUsername) {
+                if (authError) authError.textContent = 'You must use your Telegram username: @' + telegramDetectedUsername;
+                if (authUsername) authUsername.value = telegramDetectedUsername;
+                return null;
+            }
+            return username;
+        }
+        function beginSession(username) {
+            currentUser = username;
+            DB.setCurrentUser(username);
+            DB.setSavedCredentials(username, '');
+            if (authError) authError.textContent = '';
+            syncWalletFromFirebase();
+            checkPendingTransactionStatus();
+            showWelcomeScreen();
+            setConnectionStatus(false, '⚡ Connecting to game server…');
+            const initData = (tg && tg.initData) ? tg.initData : '';
+            if (client) client.connect(initData, pendingReferralCode, null);
+            else { console.error('[WINZO] client not initialized'); }
+        }
+        function handleLogin() { const u = resolveLoginUsername(); if (u) beginSession(u); }
+        function handleSignup() { const u = resolveLoginUsername(); if (u) beginSession(u); }
+        function clearAllLocalData() {
+            localStorage.removeItem('bingo_current_user'); localStorage.removeItem('bingo_saved_bet');
+            localStorage.removeItem('bingo_toast_shown'); localStorage.removeItem('bingo_app_version');
+        }
+
+        // ============================================================
+        //  LOGOUT
+        // ============================================================
+        function performLogout() {
+            localSelectionRound = null; localSelectionPicks = [];
+            if (client) client.leave();
+            detachLastResultListener(); clearCardFetchRetry(); stopResilienceEngine();
+            if (gameRef) { gameRef.off(); gameRef = null; }
+            stopTimer(); stopResultsCountdown();
+            if (userWalletRef) { userWalletRef.off(); userWalletRef = null; }
+            if (pendingTxListenerRef && pendingTxListenerHandler) {
+                try { pendingTxListenerRef.off('child_changed', pendingTxListenerHandler); } catch (e) {}
+                pendingTxListenerRef = null; pendingTxListenerHandler = null;
+            }
+            Object.keys(transactionListeners).forEach(key => { try { database.ref('transactions/' + key).off(); } catch (e) {} delete transactionListeners[key]; });
+            stopNetworkListener(); stopNotificationListener(); stopStickyBroadcastListener();
+            clearTransactionPopups();
+            clearAllLocalData();
+            currentUser = null; currentBet = 15; currentRoom = 'room_15';
+            isGameInitialized = false;
+            walletData = { main: 0, play: 0, pending: 0, refEarn: 0 };
+            engineState = {
+                players: {}, allTakenNumbers: new Set(), drawnNumbers: [], winners: [],
+                gamePhase: 'selection', roundNumber: 1, timer: 30, activePlayersCount: 0,
+                playerNames: [], prizePool: 0, winnersModalShown: false
+            };
+            lastRoomSnapshotRaw = null; displayedCardRound = null; lastResultData = null;
+            ballAnimationPlayedRounds.clear(); ballAnimationPlaying = false; window._ballAnimStartedAt = null;
+            gamePausedBySticky = false; activeStickyBroadcast = null;
+            closeMoreDropdown(); hideWaitingModal();
+            if (welcomeToast) welcomeToast.classList.remove('active');
+            stopFireworks();
+            if (transactionModal) transactionModal.classList.remove('active');
+            if (winnersModal) winnersModal.classList.remove('active');
+            if (stickyOverlay) stickyOverlay.classList.remove('active');
+            if (broadcastModal) broadcastModal.classList.remove('active');
+            try { Guide.stop(); } catch (e) {}
+            resetWinningNumberCard();
+            updateWalletUI(); updateAllUI(); showAuthScreen();
+        }
+
+        // ============================================================
+        //  ROOM SELECTION
+        // ============================================================
+        function resetEngineStateForNewRound() {
+            localSelectionRound = null; localSelectionPicks = [];
+            if (currentUser && engineState.players[currentUser]) {
+                const p = engineState.players[currentUser];
+                p.pick = null; p.picks = []; p.ready = false; p.betDeducted = false; p.betSources = {};
+            }
+            engineState.allTakenNumbers = new Set();
+            engineState.drawnNumbers = []; engineState.winners = [];
+            engineState.gamePhase = 'selection'; engineState.waitingModalShown = false;
+            engineState.prizePool = 0; engineState.winnersModalShown = false;
+            lastRoomSnapshotRaw = null; displayedCardRound = null; lastResultData = null;
+            clearCardFetchRetry();
+            if (winnersModal) winnersModal.classList.remove('active');
+            resetWinningNumberCard();
+            ballAnimationPlayedRounds.clear(); ballAnimationPlaying = false; window._ballAnimStartedAt = null;
+        }
+        function selectBet(amount) {
+            if (!currentUser) return;
+            detachLastResultListener(); clearCardFetchRetry(); stopResilienceEngine();
+            if (gameRef) { gameRef.off(); gameRef = null; }
+            stopTimer();
+            isGameInitialized = false;
+            resetEngineStateForNewRound();
+            currentBet = amount;
+            currentRoom = amount === 15 ? 'room_15' : 'room_30';
+            DB.setSavedBet(amount);
+            showGameScreen();
+            renderNumberPicker(true);
+            updateTotalBetDisplay();
+            initGameConnection();
+            updateStatus(`🔄 Joined ${amount} Birr room. Pick numbers!`);
+        }
+        function switchRoom() {
+            if (currentUser) {
+                if (getMyPicks().length) {
+                    if (!confirm('You have active picks. Switching rooms will clear them. Continue?')) return;
+                }
+                if (client) client.leave();
+            }
+            detachLastResultListener(); clearCardFetchRetry(); stopResilienceEngine();
+            if (gameRef) { gameRef.off(); gameRef = null; }
+            stopTimer();
+            isGameInitialized = false;
+            resetEngineStateForNewRound();
+            DB.setSavedBet(null);
+            showWelcomeScreen();
+            updateStatus('🔄 Choose your room.');
+            closeMoreDropdown(); hideWaitingModal();
+            if (timerDisplay) timerDisplay.textContent = '30';
+            if (prizeDisplay) prizeDisplay.textContent = '0';
+            if (playerCountEl) playerCountEl.textContent = '0';
+            if (gamePhaseLabel) gamePhaseLabel.textContent = '⏳ Selecting';
+            renderNumberPicker(); updatePickStatus(); updateWalletUI(); updateTotalBetDisplay();
+        }
+        function toggleMoreDropdown(e) { e.stopPropagation(); if (moreDropdown) moreDropdown.classList.toggle('open'); }
+        function openReferralModal() {
+            if (!currentUser) return;
+            const link = `${TELEGRAM_BOT_LINK}?startapp=ref_${encodeURIComponent(currentUser)}`;
+            if (referralLink) referralLink.value = link;
+            if (referralModal) referralModal.classList.add('active');
+            closeMoreDropdown();
+        }
+        function closeMoreDropdown() { if (moreDropdown) moreDropdown.classList.remove('open'); }
+        document.addEventListener('click', (e) => { if (!e.target.closest('.more-wrapper')) closeMoreDropdown(); });
+
+        // ============================================================
+        //  TIMER
+        // ============================================================
+        function startTimer() {
+            stopTimer();
+            if (engineState.gamePhase !== 'selection') return;
+            if (gamePausedBySticky) return;
+            if (!phaseDeadline) return;
+            isTimerRunning = true;
+            const tick = () => {
+                if (gamePausedBySticky || engineState.gamePhase !== 'selection') { stopTimer(); return; }
+                const remaining = getRemainingSeconds(phaseDeadline);
+                engineState.timer = remaining;
+                if (timerDisplay) timerDisplay.textContent = remaining;
+                if (remaining <= 0) stopTimer();
+            };
+            tick();
+            timerInterval = setInterval(tick, 500);
+        }
+        function stopTimer() {
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            isTimerRunning = false;
+        }
+        function startResultsCountdown() {
+            if (isResultsCountdownRunning) return;
+            isResultsCountdownRunning = true;
+            let remaining = 5;
+            if (timerDisplay) timerDisplay.textContent = remaining;
+            resultsCountdownInterval = setInterval(() => {
+                remaining -= 1;
+                if (timerDisplay) timerDisplay.textContent = Math.max(0, remaining);
+                if (remaining <= 0) {
+                    stopResultsCountdown();
+                    if (winnersModal) winnersModal.classList.remove('active');
+                }
+            }, 1000);
+        }
+        function stopResultsCountdown() {
+            if (resultsCountdownInterval) { clearInterval(resultsCountdownInterval); resultsCountdownInterval = null; }
+            isResultsCountdownRunning = false;
+        }
+
+        // ============================================================
+        //  UI UPDATES
+        // ============================================================
+        function updateUIFromState() {
+            if (updatePending) return;
+            updatePending = true;
+            requestAnimationFrame(() => {
+                if (playerCountEl) playerCountEl.textContent = engineState.activePlayersCount;
+                const labels = { 'selection': '⏳ Selecting', 'spinning': '🎲 Rolling', 'results': '🏆 Results' };
+                if (gamePhaseLabel) gamePhaseLabel.textContent = labels[engineState.gamePhase] || '⏳';
+                renderNumberPicker(); updatePickStatus(); updateTotalBetDisplay();
+                updatePending = false;
+            });
+        }
+        function updatePickStatus() {
+            const picks = getMyPicks();
+            if (pickStatus) {
+                if (gamePausedBySticky) pickStatus.innerHTML = `⏸ <span class="highlight">Paused by admin</span>`;
+                else if (picks.length) pickStatus.innerHTML = `🎯 Your picks: <span class="highlight">${picks.join(', ')}</span> (${picks.length}/${MAX_PICKS_PER_ROUND})`;
+                else pickStatus.innerHTML = `🎯 Pick up to <span class="highlight">3</span> numbers`;
+            }
+            if (selectedCountSpan) {
+                if (picks.length) { selectedCountSpan.textContent = picks.join(', '); selectedCountSpan.style.color = '#ffcc44'; }
+                else { selectedCountSpan.textContent = 'None'; selectedCountSpan.style.color = '#b8a0d0'; }
+            }
+        }
+        function updateAllUI() {
+            updateWalletUI();
+            if (playerCountEl) playerCountEl.textContent = engineState.activePlayersCount;
+            if (timerDisplay) timerDisplay.textContent = engineState.timer;
+            const labels = { 'selection': '⏳ Selecting', 'spinning': '🎲 Rolling', 'results': '🏆 Results' };
+            if (gamePhaseLabel) gamePhaseLabel.textContent = labels[engineState.gamePhase] || '⏳';
+            updatePickStatus(); renderNumberPicker();
+            updatePrizeDisplay(); updateTotalBetDisplay();
+        }
+        function renderNumberPicker(showLoading = false) {
+            if (!numPicker) return;
+            if (productionRenderQueued) return;
+            productionRenderQueued = true;
+            requestAnimationFrame(() => {
+                productionRenderQueued = false;
+                if (!currentUser) {
+                    numPicker.innerHTML = '<div style="color:#7a6a9a;font-size:0.7rem;text-align:center;padding:20px;">Please log in</div>';
+                    return;
+                }
+                if (showLoading || !isGameInitialized || Object.keys(engineState.players || {}).length === 0) {
+                    let loading = '';
+                    for (let i = 1; i <= 40; i++) loading += '<div class="num-btn loading">•</div>';
+                    numPicker.innerHTML = loading;
+                    return;
+                }
+                let buttons = numPicker.querySelectorAll('.num-btn[data-num]');
+                if (buttons.length !== 200) {
+                    let html = '';
+                    for (let i = 1; i <= 200; i++) html += `<button class="num-btn" data-num="${i}">${i}</button>`;
+                    numPicker.innerHTML = html;
+                    buttons = numPicker.querySelectorAll('.num-btn[data-num]');
+                }
+                const myPicks = getMyPicks();
+                const locked = gamePausedBySticky || engineState.gamePhase !== 'selection' ||
+                    engineState.activePlayersCount <= 1 || !isNetworkConnected;
+                buttons.forEach(btn => {
+                    const n = Number(btn.dataset.num);
+                    const selected = myPicks.includes(n);
+                    const taken = engineState.allTakenNumbers.has(n) && !selected;
+                    const pending = pendingPickOps.has(n);
+                    btn.classList.toggle('selected', selected);
+                    btn.classList.toggle('taken', taken);
+                    btn.classList.toggle('loading', pending);
+                    btn.disabled = locked || taken || pending ||
+                        (myPicks.length >= MAX_PICKS_PER_ROUND && !selected);
+                });
+                updatePickStatus();
+                updateTotalBetDisplay();
+            });
+        }
+        function showWaitingModal() { if (waitingModal) waitingModal.classList.add('active'); }
+        function hideWaitingModal() { if (waitingModal) waitingModal.classList.remove('active'); }
+        if (closeWaitingBtn) closeWaitingBtn.onclick = () => hideWaitingModal();
+        if (transactionCloseBtn) {
+            transactionCloseBtn.onclick = () => {
+                if (transactionModal) transactionModal.classList.remove('active');
+                Object.keys(transactionListeners).forEach(key => { try { database.ref('transactions/' + key).off(); } catch (e) {} delete transactionListeners[key]; });
+            };
+        }
+
+        // ============================================================
+        //  PICK HANDLERS
+        // ============================================================
+        function handlePickOk(number) {
+            const num = Number(number);
+            pendingPickOps.delete(num);
+            renderNumberPicker(); updatePickStatus(); updateTotalBetDisplay();
+            updateStatus(`✅ Picked ${num} for ${currentBet} Birr!`);
+        }
+        function handlePickFail(number, reason) {
+            const num = Number(number);
+            pendingPickOps.delete(num);
+            const myPicks = getMyPicks();
+            if (myPicks.includes(num)) {
+                const remaining = myPicks.filter(n => n !== num);
+                syncLocalPlayerPicks(remaining, engineState.roundNumber, remaining.length > 0);
+            }
+            renderNumberPicker(); updatePickStatus(); updateTotalBetDisplay();
+            const msgs = {
+                'taken':         `❌ Number ${num} was just taken!`,
+                'insufficient':  `⚠️ Insufficient play balance.`,
+                'max-picks':     `❌ You can pick up to ${MAX_PICKS_PER_ROUND} numbers only.`,
+                'not-selection': `⛔ Cannot pick numbers now.`,
+                'duplicate':     `❌ Already picked.`,
+                'not-picked':    `↩️ Not in your picks.`,
+                'not-owner':     `⚠️ This number isn't yours.`,
+                'refund-failed': `⚠️ Could not release. Try again.`,
+                'range':         `⚠️ Invalid number.`,
+                'not-authed':    `🔑 Please log in.`,
+            };
+            updateStatus(msgs[reason] || `⚠️ ${reason}`);
+        }
+
+        if (numPicker) {
+            const handleNumberPick = function(e) {
+                const btn = e.target.closest('.num-btn[data-num]');
+                if (!btn || btn.disabled || btn.classList.contains('loading')) return;
+                const num = Number(btn.dataset.num);
+                if (!Number.isInteger(num) || num < 1 || num > 200) return;
+                if (pendingPickOps.has(num)) return;
+
+                const opRound = Number(engineState.roundNumber);
+
+                if (gamePausedBySticky || !isNetworkConnected) { updateStatus('⏸ Game is temporarily unavailable.'); return; }
+                if (engineState.gamePhase !== 'selection') { updateStatus('⛔ Cannot pick numbers now.'); return; }
+                if (engineState.activePlayersCount <= 1) { updateStatus('⏳ Waiting for more players...'); return; }
+
+                const myPicks = getMyPicks();
+                const removing = myPicks.includes(num);
+
+                if (removing) {
+                    pendingPickOps.add(num);
+                    syncLocalPlayerPicks(myPicks.filter(n => n !== num), opRound, myPicks.length > 1);
+                    renderNumberPicker(); updatePickStatus(); updateTotalBetDisplay();
+                    if (client) client.unpick(num);
+                    return;
+                }
+                if (myPicks.length >= MAX_PICKS_PER_ROUND) { updateStatus(`❌ You can pick up to ${MAX_PICKS_PER_ROUND} numbers only.`); return; }
+                if (engineState.allTakenNumbers.has(num)) { updateStatus(`❌ Number ${num} is already taken!`); return; }
+                if (Number(walletData.play) < Number(currentBet)) { updateStatus(`⚠️ Insufficient play balance. Need ${currentBet} Birr.`); return; }
+
+                pendingPickOps.add(num);
+                syncLocalPlayerPicks([...myPicks, num], opRound, true);
+                renderNumberPicker(); updatePickStatus(); updateTotalBetDisplay();
+                if (client) client.pick(num);
+            };
+            numPicker.addEventListener('pointerdown', function(e) {
+                if (e.pointerType === 'mouse') return;
+                e.preventDefault();
+                handleNumberPick(e);
+            }, { passive: false });
+            numPicker.addEventListener('click', function(e) {
+                if (e.detail === 0) handleNumberPick(e);
+            });
+        }
+
+        // ============================================================
+        //  SERVER CLIENT
+        // ============================================================
+        class WinzoClient {
+            constructor(handlers) {
+                Object.assign(this, handlers);
+                this.ws = null; this.backoff = 800;
+                this.initData = ''; this.refCode = null; this.roomId = null; this._ka = null;
+                this.connecting = false;
+            }
+            connect(initData, refCode, roomId) {
+                this.initData = initData || '';
+                this.refCode = refCode || null;
+                this.roomId = roomId || null;
+                if (this.ws) { try { this.ws.close(); } catch (e) {} }
+                this.connecting = true;
+                this.ws = new WebSocket(SERVER_WS_URL);
+                this.ws.onopen = () => {
+                    this.connecting = false;
+                    this.backoff = 800;
+                    this.onConnection && this.onConnection(false);
+                    const authMsg = { type: 'auth', initData: this.initData, ref: this.refCode };
+                    if (DEV_MODE && !this.initData && currentUser) authMsg.devUsername = currentUser;
+                    this.rawSend(authMsg);
+                };
+                this.ws.onmessage = ev => {
+                    let m; try { m = JSON.parse(ev.data); } catch { return; }
+                    if (m.type === 'authed')            { this.onAuth && this.onAuth(m.uid); this.onConnection && this.onConnection(true); if (this.roomId) this.rawSend({ type: 'join', room: this.roomId }); }
+                    else if (m.type === 'state')        this.onState && this.onState(m.state, m.room);
+                    else if (m.type === 'pick-ok')      this.onPickOk && this.onPickOk(m.number);
+                    else if (m.type === 'pick-fail')    this.onPickFail && this.onPickFail(m.number, m.reason);
+                    else if (m.type === 'unpick-ok')    this.onPickOk && this.onPickOk(m.number);
+                    else if (m.type === 'unpick-fail')  this.onPickFail && this.onPickFail(m.number, m.reason);
+                    else if (m.type === 'wallet')       this.onWallet && this.onWallet(m);
+                    else if (m.type === 'transaction-created') this.onTransactionCreated && this.onTransactionCreated(m);
+                    else if (m.type === 'transaction-status') this.onTransactionStatus && this.onTransactionStatus(m);
+                    else if (m.type === 'error')        this.onError && this.onError(m);
+                };
+                this.ws.onclose = () => {
+                    clearInterval(this._ka);
+                    this.connecting = false;
+                    this.onConnection && this.onConnection(false);
+                    setTimeout(() => this.connect(this.initData, this.refCode, this.roomId), this.backoff);
+                    this.backoff = Math.min(this.backoff * 2, 15000);
+                };
+                this.ws.onerror = () => {};
+                clearInterval(this._ka);
+                this._ka = setInterval(() => this.rawSend({ type: 'ping' }), 25000);
+            }
+            rawSend(m) {
+                if (this.ws && this.ws.readyState === 1) { try { this.ws.send(JSON.stringify(m)); return true; } catch {} }
+                return false;
+            }
+            send(m) { return this.rawSend(m); }
+            join(roomId) { this.roomId = roomId; if (this.ws?.readyState === 1) this.rawSend({ type: 'join', room: roomId }); }
+            pick(n) { return this.rawSend({ type: 'pick', number: n }); }
+            unpick(n) { return this.rawSend({ type: 'unpick', number: n }); }
+            transfer(a) { return this.rawSend({ type: 'transfer', amount: a }); }
+            transactionRequest(data) { return this.rawSend(Object.assign({ type: 'transaction-request' }, data)); }
+            transactionImage(id, imageUrl) { return this.rawSend({ type: 'transaction-image', id, imageUrl }); }
+            leave() { if (this.ws?.readyState === 1) this.rawSend({ type: 'leave' }); this.roomId = null; }
+        }
+
+        // ============================================================
+        //  GAME CONNECTION (READ-ONLY)
+        // ============================================================
+        function initGameConnection() {
+            const generation = ++roomConnectionGeneration;
+            pendingPickOps.clear();
+            if (gameRef) { try { gameRef.off(); } catch (e) {} gameRef = null; }
+            detachLastResultListener(); clearCardFetchRetry();
+            stopResilienceEngine(); stopTimer();
+            if (!currentRoom || !currentUser) return;
+
+            if (database) database.ref('.info/serverTimeOffset').once('value').then(snap => {
+                if (generation === roomConnectionGeneration) serverTimeOffset = Number(snap.val()) || 0;
+            }).catch(() => {});
+
+            isGameInitialized = true;
+            if (client) client.join(currentRoom);
+            setConnectionStatus(!!isNetworkConnected, (isNetworkConnected ? '🔑 Connected to ' : '⚡ Connecting to ') + currentBet + ' Birr room');
+            startResilienceEngine();
+            setTimeout(() => {
+                if (generation === roomConnectionGeneration) renderNumberPicker();
+            }, 100);
+        }
+
+        function syncGameState(data) {
+            if (!data || typeof data !== 'object') return;
+            lastRoomSnapshotRaw = data;
+            const players = (data.players && typeof data.players === 'object') ? data.players : {};
+            const playerNames = Object.keys(players);
+            const phase = data.gameState || 'selection';
+            const round = Number(data.round) || 1;
+            const roundChanged = (round !== engineState.roundNumber);
+            if (roundChanged) { localSelectionRound = null; localSelectionPicks = []; }
+            if (currentUser && phase === 'selection') {
+                const authoritative = getPlayerPicks(players[currentUser]);
+                if (pendingPickOps.size === 0) {
+                    localSelectionRound = round;
+                    localSelectionPicks = authoritative.slice(0, MAX_PICKS_PER_ROUND);
+                }
+            }
+
+            engineState.players = players;
+            engineState.playerNames = playerNames;
+            engineState.activePlayersCount = playerNames.length;
+            engineState.gamePhase = phase;
+            engineState.roundNumber = round;
+            phaseDeadline = Number(data.endsAt || data.selectionEndsAt) || 0;
+            if (Number(data.serverNow)) serverTimeOffset = Number(data.serverNow) - Date.now();
+            if (data.lastResult) lastResultData = data.lastResult;
+            engineState.timer = phaseDeadline ? getRemainingSeconds(phaseDeadline) : (Number(data.timer) || 0);
+            engineState.drawnNumbers = Array.isArray(data.drawnNumbers) ? data.drawnNumbers : [];
+            engineState.winners = Array.isArray(data.winners) ? data.winners : [];
+            engineState.prizePool = Number(data.prizePool) || 0;
+            engineState.allTakenNumbers = new Set(
+                Object.keys(data.numbersTaken || {})
+                    .filter(k => data.numbersTaken[k] === true)
+                    .map(Number).filter(n => n >= 1 && n <= 200)
+            );
+
+            if (roundChanged) {
+                displayedCardRound = null; lastResultData = null;
+                clearCardFetchRetry();
+            }
+            if (playerCountEl) playerCountEl.textContent = String(playerNames.length);
+            updateTotalBetDisplay();
+
+            if (phase === 'selection') {
+                if (!isTimerRunning && !gamePausedBySticky) startTimer();
+                if (playerNames.length <= 1) showWaitingModal();
+                else hideWaitingModal();
+            } else { stopTimer(); hideWaitingModal(); }
+
+            updateUIFromState();
+
+            if (phase === 'results') {
+                if (!engineState.winnersModalShown) {
+                    engineState.winnersModalShown = true;
+                    const winners = Array.isArray(data.winners) ? data.winners : [];
+                    if (winners.length) playWinningAudio(); else playNoWinnerAudio();
+                }
+            } else { engineState.winnersModalShown = false; }
+
+            applyCardState();
+            updatePrizeDisplay(); updatePickStatus(); renderNumberPicker(); updateTotalBetDisplay();
+        }
+
+        // ============================================================
+        //  TRANSACTION REQUEST (the only client write path)
+        // ============================================================
+        function requestTransaction(type, amount, reference = '', imageFile = null, extra = {}) {
+            if (!currentUser || !client || !isNetworkConnected) return Promise.resolve(false);
+            amount = Number(amount);
+            if (!['deposit', 'withdraw'].includes(type) || !Number.isFinite(amount) || amount <= 0) return Promise.resolve(false);
+            const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('tx_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+            transactionStatus.textContent = '⏳ Sending request to admin...';
+            transactionStatus.className = 'status-text pending';
+            if (transactionModal) transactionModal.classList.add('active');
+            const sent = client.transactionRequest({
+                id, txType: type, amount,
+                reference: reference ? safeProductionName(reference) : '',
+                fullName: extra.name ? safeProductionName(extra.name) : '',
+                phoneNumber: extra.phone ? safeProductionName(extra.phone) : ''
+            });
+            if (!sent) { transactionStatus.textContent = '⚠️ Network unavailable.'; return Promise.resolve(false); }
+            transactionStatus.textContent = '⏳ Pending admin approval...';
+            if (type === 'deposit' && imageFile && storage) {
+                storage.ref(`deposits/${currentUser}/${id}.jpg`).put(imageFile)
+                    .then(s => s.ref.getDownloadURL())
+                    .then(url => client.transactionImage(id, url))
+                    .catch(() => {});
+            }
+            return Promise.resolve(true);
+        }
+
+        // ============================================================
+        //  INIT
+        // ============================================================
+        function init() {
+            if (authLoginBtn) authLoginBtn.onclick = handleLogin;
+            if (authSignupBtn) authSignupBtn.onclick = handleSignup;
+            if (bet15Btn) bet15Btn.onclick = () => selectBet(15);
+            if (bet30Btn) bet30Btn.onclick = () => selectBet(30);
+            if (welcomeLogoutBtn) welcomeLogoutBtn.onclick = function() { if (confirm('Are you sure you want to logout?')) performLogout(); };
+            if (gameLogoutBtn) gameLogoutBtn.onclick = function() { if (confirm('Are you sure you want to logout?')) performLogout(); };
+            if (welcomeDepositBtn) welcomeDepositBtn.onclick = openDepositModal;
+            if (depositBtn) depositBtn.onclick = openDepositModal;
+            if (reconnectBtn) reconnectBtn.onclick = function() {
+                closeMoreDropdown();
+                updateStatus('🔌 Reconnecting…');
+                if (client) client.connect((tg && tg.initData) || '', pendingReferralCode, currentRoom);
+                setTimeout(() => { updateStatus('✅ Reconnect requested.'); }, 500);
+            };
+            if (withdrawBtn) withdrawBtn.onclick = () => {
+                const available = walletData.main - walletData.pending;
+                if (withdrawAvailableBalance) withdrawAvailableBalance.textContent = available;
+                if (withdrawError) withdrawError.textContent = '';
+                if (withdrawName) withdrawName.value = '';
+                if (withdrawPhone) withdrawPhone.value = '';
+                if (withdrawAmountEl) withdrawAmountEl.value = '';
+                if (withdrawModal) withdrawModal.classList.add('active');
+                closeMoreDropdown();
+                if (!Guide.hasSeen('withdraw')) setTimeout(() => Guide.start(getWithdrawGuideSteps(), 'withdraw'), 380);
+            };
+            if (transferBtn) transferBtn.onclick = () => {
+                const amount = prompt('Enter amount to transfer from Main to Play:', '10');
+                if (amount !== null) {
+                    const num = parseInt(amount);
+                    if (!isNaN(num) && num > 0) transferToPlay(num);
+                    else alert('Please enter a valid positive number.');
+                }
+                closeMoreDropdown();
+            };
+            if (switchRoomBtn) switchRoomBtn.onclick = function() {
+                if (currentUser) switchRoom(); else showWelcomeScreen();
+                closeMoreDropdown();
+            };
+            if (referralBtn) referralBtn.onclick = openReferralModal;
+            if (customerServiceBtn) customerServiceBtn.onclick = () => {
+                closeMoreDropdown();
+                const url = 'https://t.me/winzosupportcenter';
+                if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+            };
+            if (referralCloseBtn) referralCloseBtn.onclick = () => { if (referralModal) referralModal.classList.remove('active'); };
+            if (referralCopyBtn) referralCopyBtn.onclick = async () => {
+                const link = referralLink ? referralLink.value : '';
+                try { await navigator.clipboard.writeText(link); } catch (e) { if (referralLink) { referralLink.select(); document.execCommand('copy'); } }
+                referralCopyBtn.textContent = '✅ Copied';
+                setTimeout(() => referralCopyBtn.textContent = '📋 Copy', 1500);
+            };
+            if (referralShareBtn) referralShareBtn.onclick = () => {
+                const link = referralLink ? referralLink.value : '';
+                const shareText = `Join Winzo and play games with me! ${link}`;
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`;
+                if (tg && tg.openTelegramLink) tg.openTelegramLink(shareUrl); else window.open(shareUrl, '_blank');
+            };
+            if (moreBtn) moreBtn.onclick = toggleMoreDropdown;
+            if (depositConfirm) depositConfirm.onclick = async () => {
+                const file = depositImage ? depositImage.files[0] : null;
+                let amount = parseFloat(depositAmount ? depositAmount.value : '0');
+                let ref = depositReference ? depositReference.value.trim() : '';
+                if (file && (!amount || !ref)) {
+                    if (ocrStatus) ocrStatus.textContent = '🔍 Reading payment details...';
+                    const extracted = await extractReferenceFromImage(file);
+                    if (!amount && extracted && extracted.amount) amount = Number(extracted.amount);
+                    if (!ref && extracted && extracted.reference) ref = String(extracted.reference);
+                    if (depositAmount && amount > 0) depositAmount.value = amount;
+                    if (depositReference && ref) depositReference.value = ref;
+                }
+                if (!amount || amount <= 0) { if (depositError) depositError.textContent = 'Could not detect the deposit amount.'; return; }
+                if (!ref && !file) { if (depositError) depositError.textContent = 'Provide a reference or screenshot.'; return; }
+                depositToPlay(amount, ref, file);
+            };
+            if (depositCancel) depositCancel.onclick = () => { if (depositModal) depositModal.classList.remove('active'); };
+            if (withdrawConfirm) withdrawConfirm.onclick = () => {
+                const amount = parseInt(withdrawAmountEl ? withdrawAmountEl.value : '0');
+                const name = withdrawName ? withdrawName.value.trim() : '';
+                const phone = withdrawPhone ? withdrawPhone.value.trim() : '';
+                if (!amount || amount <= 0 || !name || !phone) { if (withdrawError) withdrawError.textContent = 'Please fill in all fields.'; return; }
+                withdrawRequest(amount, name, phone);
+            };
+            if (withdrawCancel) withdrawCancel.onclick = () => { if (withdrawModal) withdrawModal.classList.remove('active'); };
+
+            injectGuideHelpButton('depositModal', getDepositGuideSteps, 'deposit');
+            injectGuideHelpButton('withdrawModal', getWithdrawGuideSteps, 'withdraw');
+            watchGuideModalClose(depositModal);
+            watchGuideModalClose(withdrawModal);
+
+            if (tg && tg.BackButton) {
+                tg.BackButton.onClick(() => {
+                    if (gameScreen && gameScreen.style.display !== 'none') {
+                        if (client) client.leave();
+                        if (gameRef) { gameRef.off(); gameRef = null; }
+                        detachLastResultListener(); clearCardFetchRetry(); stopResilienceEngine(); stopTimer();
+                        isGameInitialized = false;
+                        if (winnersModal) winnersModal.classList.remove('active');
+                        resetWinningNumberCard();
+                        showWelcomeScreen();
+                    } else showWelcomeScreen();
+                });
+                tg.BackButton.show();
+            }
+
+            currentUser = null;
+
+            if (DEV_MODE) {
+                const wrapper = document.querySelector('.game-wrapper');
+                if (wrapper) {
+                    const badge = document.createElement('div');
+                    badge.className = 'dev-badge';
+                    badge.textContent = 'DEV';
+                    wrapper.appendChild(badge);
+                }
+            } else {
+                const footer = document.getElementById('hiddenCleanupFooter');
+                if (footer) footer.style.display = 'none';
+            }
+
+            client = new WinzoClient({
+                onAuth: (uid) => { currentUser = uid; syncWalletFromFirebase(); },
+                onState: (state, room) => {
+                    if (!state || (room && room !== currentRoom)) return;
+                    syncGameState(state); markSyncReceived();
+                },
+                onConnection: (online) => {
+                    setConnectionStatus(online, online ? '🔑 Server connected' : '⚡ Reconnecting…');
+                    isNetworkConnected = !!online;
+                    renderNumberPicker();
+                },
+                onPickOk: handlePickOk,
+                onPickFail: handlePickFail,
+                onWallet: (w) => {
+                    walletData.main = Number(w.main || 0);
+                    walletData.play = Number(w.play || 0);
+                    walletData.pending = Number(w.pending || 0);
+                    updateWalletUI(); updateWelcomeUI();
+                },
+                onTransactionCreated: (m) => {
+                    transactionStatus.textContent = '⏳ Pending admin approval...';
+                },
+                onTransactionStatus: (m) => {
+                    const approved = m.status === 'approved';
+                    transactionStatus.textContent = approved ? (m.txType === 'withdraw' ? '✅ Withdrawal approved.' : '✅ Deposit approved.') : '❌ Transaction rejected.';
+                    transactionStatus.className = 'status-text ' + (approved ? 'approved' : 'rejected');
+                    syncWalletFromFirebase();
+                    setTimeout(() => transactionModal && transactionModal.classList.remove('active'), 1800);
+                },
+                onError: (m) => updateStatus('⚠️ ' + (m.message || 'server error')),
+            });
+
+            if (!window.__winzoServerTimeTimer) {
+                window.__winzoServerTimeTimer = setInterval(() => {
+                    if (!database) return;
+                    database.ref('.info/serverTimeOffset').once('value')
+                        .then(s => { serverTimeOffset = Number(s.val()) || 0; }).catch(() => {});
+                }, 30000);
+            }
+
+            showAuthScreen();
+        }
+
+        // ============================================================
+        //  BOOT
+        // ============================================================
+        if (DEV_MODE) {
+            console.info('WINZO client booted (server-authoritative mode)');
+            console.info('WS endpoint:', SERVER_WS_URL);
+            console.info('Firebase reads only. All money/spins/bots live on the Codespaces server.');
+            console.info('Dev tip: window.WINZO_ERRORS collects runtime errors.');
+        }
+
+        init();
+    </script>
+</body>
+</html>

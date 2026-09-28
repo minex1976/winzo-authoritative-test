@@ -1,0 +1,13 @@
+{
+  "name": "winzo-server",
+  "version": "1.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0",
+    "firebase-admin": "^12.4.0"
+  }
+}
